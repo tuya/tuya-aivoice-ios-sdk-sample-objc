@@ -246,6 +246,8 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Info.plist";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "需要获取蓝牙权限";
+				INFOPLIST_KEY_NSCameraUsageDescription = "需要获取相机权限以扫描设备";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "需要获取您的位置信息以创建家庭";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
@@ -277,7 +279,9 @@
 				DEVELOPMENT_TEAM = DUL9LYV48S;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Info.plist\n";
+				INFOPLIST_FILE = "$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Info.plist";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "需要获取蓝牙权限";
+				INFOPLIST_KEY_NSCameraUsageDescription = "需要获取相机权限以扫描设备";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "需要获取您的位置信息以创建家庭";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;

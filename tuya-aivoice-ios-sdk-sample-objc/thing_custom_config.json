@@ -1,12 +1,13 @@
 {
     "config":
     {
-        "appId":"",
-        "thingAppKey":"",
+        "appId":"559179115",
+        "thingAppKey":"4tgckatqqp9swxtme79f",
         "appScheme":"AIVoiceDemo",
         "needBle":true,
         "is_support_home_manager":true,
         "need_backgroud_audio":true,
+        "needQRCode": true,
         "hotspotPrefixs": ["AAA", "BBB"]
         
     },

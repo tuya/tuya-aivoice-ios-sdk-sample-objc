@@ -7,7 +7,7 @@
 #ifndef AppKey_h
 #define AppKey_h
 
-#define APP_KEY @""
-#define APP_SECRET_KEY @""
+#define APP_KEY @"4tgckatqqp9swxtme79f"
+#define APP_SECRET_KEY @"qw3xswjax5xkpajyqv4m7wqtxvjvvamj"
 
 #endif /* AppKey_h */

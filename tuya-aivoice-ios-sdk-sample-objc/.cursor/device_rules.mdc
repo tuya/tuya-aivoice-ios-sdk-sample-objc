@@ -1,0 +1,29 @@
+---
+alwaysApply: false
+---
+
+# 设备控制
+
+本章节主要操作对象包含 ThingSmartDeviceModel 和 ThingSmartDevice。
+
+
+## 查询设备列表
+
+设备成功配网后，您可以在对应的家庭下查看对应的设备列表。
+
+```
+self.home = [ThingSmartHome homeWithHomeId:#your homeId];
+self.deviceList = [self.home.deviceList copy];
+```
+
+您必须先调用 获取家庭详细信息 接口。否则即使配网成功也无法成功获取。
+
+## 查看设备信息
+
+设备的功能点信息存放在 deviceModel 的 schemaArray 中。
+
+```
+ThingSmartDevice *device = self.device;
+NSArray *schemas = device.deviceModel.schemaArray;
+```
+
