@@ -11,6 +11,17 @@
 static NSString * const kCurrentHomeKey = @"CurrentHome";
 static NSString * const kCachedHomeDetailKey = @"CachedHomeDetail";
 
+// 共享的 SDK 操作串行队列，确保所有 SDK 操作在同一线程执行
+static dispatch_queue_t sSDKQueue = nil;
+static dispatch_once_t sSDKQueueOnceToken;
+
+static dispatch_queue_t getSDKQueue() {
+    dispatch_once(&sSDKQueueOnceToken, ^{
+        sSDKQueue = dispatch_queue_create("com.tuya.sdk.operations", DISPATCH_QUEUE_SERIAL);
+    });
+    return sSDKQueue;
+}
+
 @implementation HomeManager
 
 + (ThingSmartHomeModel *)getCurrentHome {
@@ -21,12 +32,16 @@ static NSString * const kCachedHomeDetailKey = @"CachedHomeDetail";
     
     long long homeId = [[defaults valueForKey:kCurrentHomeKey] longLongValue];
     
-    ThingSmartHome *home = [ThingSmartHome homeWithHomeId:homeId];
-    if (!home) {
-        return nil;
-    }
+    // 在串行队列中执行 SDK 操作
+    __block ThingSmartHomeModel *result = nil;
+    dispatch_sync(getSDKQueue(), ^{
+        ThingSmartHome *home = [ThingSmartHome homeWithHomeId:homeId];
+        if (home) {
+            result = home.homeModel;
+        }
+    });
     
-    return home.homeModel;
+    return result;
 }
 
 + (void)setCurrentHome:(ThingSmartHomeModel *)homeModel {
@@ -58,7 +73,13 @@ static NSString * const kCachedHomeDetailKey = @"CachedHomeDetail";
         return nil;
     }
     
-    return [ThingSmartHome homeWithHomeId:homeId];
+    // 在串行队列中执行 SDK 操作
+    __block ThingSmartHome *result = nil;
+    dispatch_sync(getSDKQueue(), ^{
+        result = [ThingSmartHome homeWithHomeId:homeId];
+    });
+    
+    return result;
 }
 
 + (void)cacheHomeDetail:(ThingSmartHomeModel *)homeModel {
@@ -83,13 +104,18 @@ static NSString * const kCachedHomeDetailKey = @"CachedHomeDetail";
     }
     
     long long homeId = [homeIdString longLongValue];
-    ThingSmartHome *home = [ThingSmartHome homeWithHomeId:homeId];
-    if (!home) {
-        return nil;
-    }
     
-    // 返回 home 实例中的 homeModel（如果已加载详细信息）
-    return home.homeModel;
+    // 在串行队列中执行 SDK 操作
+    __block ThingSmartHomeModel *result = nil;
+    dispatch_sync(getSDKQueue(), ^{
+        ThingSmartHome *home = [ThingSmartHome homeWithHomeId:homeId];
+        if (home) {
+            // 返回 home 实例中的 homeModel（如果已加载详细信息）
+            result = home.homeModel;
+        }
+    });
+    
+    return result;
 }
 
 @end

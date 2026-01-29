@@ -1,0 +1,62 @@
+---
+alwaysApply: false
+---
+
+# 设备配网
+
+智能生活设备配网 UI 业务包的功能涵盖了目前常见的 Wi-Fi 设备、Zigbee 设备、蓝牙设备，并且支持二维码扫码的设备，例如 GPRS 和 NB-IoT 设备。业务包主要实现不同类型的设备配网前置操作引导，和具体入网激活。
+扫码配网设备上电后即连接了涂鸦的云服务，App 通过扫描设备上的二维码让设备在云端激活绑定。这个二维码必须是涂鸦支持的二维码规则，具体接入方式可咨询您的涂鸦客户经理。
+
+## 注意事项
+
+调用配网业务包逻辑前，要先实现 ThingSmartHomeDataProtocol 中的协议方法getCurrentHome
+
+```
+#import <ThingSmartBizCore/ThingSmartBizCore.h>
+#import <ThingModuleServices/ThingSmartHomeDataProtocol.h>
+
+- (void)initCurrentHome {
+    // 注册要实现的协议
+    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingSmartHomeDataProtocol) withInstance:self];
+}
+
+// 实现对应的协议方法
+- (ThingSmartHome *)getCurrentHome {
+    ThingSmartHome *home = [ThingSmartHome homeWithHomeId:@"当前家庭 id"];
+    return home;
+}
+```
+
+## 进入配网
+
+```
+#import <ThingSmartBizCore/ThingSmartBizCore.h>
+#import <ThingModuleServices/ThingActivatorProtocol.h>
+
+- (void)gotoDeviceConfig {
+    id<ThingActivatorProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingActivatorProtocol)];
+    [impl gotoCategoryViewController];
+
+    // 获取配网结果
+    [impl activatorCompletion:ThingActivatorCompletionNodeNormal customJump:NO completionBlock:^(NSArray * _Nullable deviceList) {
+        NSLog(@"deviceList: %@",deviceList);
+    }];
+}
+```
+
+## 扫码功能
+
+```
+#import <ThingSmartBizCore/ThingSmartBizCore.h>
+#import <ThingModuleServices/ThingActivatorProtocol.h>
+
+- (void)gotoQRCodeViewController {
+    // 注册要实现的协议
+      id<ThingActivatorProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingActivatorProtocol)];
+      if ([impl respondsToSelector:@selector(gotoQRCodeViewControllerWithUserInfo:)]) {
+        [impl gotoQRCodeViewControllerWithUserInfo:nil];
+    }
+}
+
+```
+

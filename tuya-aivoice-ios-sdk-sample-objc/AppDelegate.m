@@ -7,6 +7,7 @@
 
 #import "AppDelegate.h"
 #import "AppKey.h"
+#import "ActivatorService.h"
 #import <ThingSmartBizCore/ThingSmartBizCore.h>
 #import <ThingModuleServices/ThingSocialProtocol.h>
 #import <ThingSmartBaseKit/ThingSmartSDK.h>
@@ -20,6 +21,33 @@
 
 @implementation AppDelegate
 
+- (UIWindow *)window {
+    // iOS 13+ Scene-based 应用中，返回当前活跃的 window
+    if (@available(iOS 13.0, *)) {
+        for (UIWindowScene *windowScene in [UIApplication sharedApplication].connectedScenes) {
+            if (windowScene.activationState == UISceneActivationStateForegroundActive) {
+                for (UIWindow *w in windowScene.windows) {
+                    if (w.isKeyWindow) {
+                        return w;
+                    }
+                }
+                // 如果没有找到 keyWindow，返回第一个 window
+                if (windowScene.windows.count > 0) {
+                    return windowScene.windows.firstObject;
+                }
+            }
+        }
+        return nil;
+    } else {
+        // iOS 13 以下，使用传统方式
+        return [UIApplication sharedApplication].keyWindow;
+    }
+}
+
+- (void)setWindow:(UIWindow *)window {
+    // 在 Scene-based 应用中，window 由 SceneDelegate 管理，这里不做任何操作
+    // 这个方法只是为了兼容性而存在
+}
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
@@ -30,6 +58,9 @@
     
     // 初始化 MiniApp SDK
     [[ThingMiniAppClient initialClient] initialize];
+    
+    // 注册配网协议实现
+    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingSmartHomeDataProtocol) withInstance:[ActivatorService sharedInstance]];
     
     return [[ThingModuleManager sharedInstance] application:application didFinishLaunchingWithOptions:launchOptions];
 }

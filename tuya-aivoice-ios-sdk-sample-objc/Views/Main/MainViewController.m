@@ -10,6 +10,9 @@
 #import "HomeManager.h"
 #import "CreateHomeViewController.h"
 #import "UIHelper.h"
+#import "ActivatorService.h"
+#import "DeviceService.h"
+#import "DeviceListView.h"
 #import <ThingSmartDeviceKit/ThingSmartDeviceKit.h>
 #import <ThingModuleServices/ThingModuleServices.h>
 #import <ThingSmartBizCore/ThingSmartBizCore.h>
@@ -17,12 +20,18 @@
 #import <objc/runtime.h>
 #import <QuartzCore/QuartzCore.h>
 
-@interface MainViewController () <CreateHomeViewControllerDelegate>
+@interface MainViewController () <CreateHomeViewControllerDelegate, DeviceListViewDelegate>
 
 @property (nonatomic, strong) UIButton *homeSelectButton;
 @property (nonatomic, strong) NSArray<ThingSmartHomeModel *> *homeList;
 @property (nonatomic, strong) ThingSmartHomeModel *selectedHome;
 @property (nonatomic, strong) ThingSmartHome *home;
+@property (nonatomic, strong) UIScrollView *scrollView;
+@property (nonatomic, strong) UIView *contentView;
+@property (nonatomic, strong) UIView *aiNoteCard;
+@property (nonatomic, strong) UIView *aiTranslateCard;
+@property (nonatomic, strong) UILabel *deviceListTitleLabel;
+@property (nonatomic, strong) DeviceListView *deviceListView;
 
 @end
 
@@ -45,11 +54,19 @@
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     
-    // 更新渐变层frame
-    for (UIView *subview in self.view.subviews) {
+    // 更新渐变层frame（包括 contentView 中的卡片）
+    [self updateGradientLayersInView:self.view];
+}
+
+- (void)updateGradientLayersInView:(UIView *)view {
+    for (UIView *subview in view.subviews) {
         CAGradientLayer *gradientLayer = objc_getAssociatedObject(subview, "gradientLayer");
         if (gradientLayer) {
             gradientLayer.frame = subview.bounds;
+        }
+        // 递归检查子视图
+        if (subview.subviews.count > 0) {
+            [self updateGradientLayersInView:subview];
         }
     }
 }
@@ -62,6 +79,9 @@
     
     // 每次页面显示时刷新家庭列表
     [self loadHomeList];
+    
+    // 刷新设备列表
+    [self refreshDeviceList];
 }
 
 - (void)setupNavigationBarAppearance {
@@ -112,57 +132,114 @@
     // 设置为导航栏的 titleView
     self.navigationItem.titleView = self.homeSelectButton;
     
-    // 家庭管理按钮 - 放在导航栏右侧
-    UIButton *familyManageButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    [familyManageButton setTitle:@"家庭管理" forState:UIControlStateNormal];
-    familyManageButton.titleLabel.font = [UIFont systemFontOfSize:16];
-    [familyManageButton setTitleColor:[UIColor systemBlueColor] forState:UIControlStateNormal];
-    [familyManageButton addTarget:self action:@selector(familyManageButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
-    [familyManageButton sizeToFit];
+    // 添加设备按钮 - 放在导航栏右侧
+    UIBarButtonItem *addDeviceButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemAdd target:self action:@selector(addDeviceButtonTapped:)];
+    self.navigationItem.rightBarButtonItem = addDeviceButton;
     
-    UIBarButtonItem *familyManageButtonItem = [[UIBarButtonItem alloc] initWithCustomView:familyManageButton];
-    self.navigationItem.rightBarButtonItem = familyManageButtonItem;
+    // 设置滚动视图
+    [self setupScrollView];
     
     // 添加小程序入口
     [self setupMiniAppButtons];
+    
+    // 添加设备列表区域
+    [self setupDeviceListSection];
+}
+
+- (void)setupScrollView {
+    // 创建滚动视图
+    self.scrollView = [[UIScrollView alloc] init];
+    self.scrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    self.scrollView.showsVerticalScrollIndicator = YES;
+    [self.view addSubview:self.scrollView];
+    
+    // 创建内容视图
+    self.contentView = [[UIView alloc] init];
+    self.contentView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.scrollView addSubview:self.contentView];
+    
+    // 布局约束
+    [NSLayoutConstraint activateConstraints:@[
+        [self.scrollView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [self.scrollView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.scrollView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.scrollView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
+        
+        [self.contentView.topAnchor constraintEqualToAnchor:self.scrollView.topAnchor],
+        [self.contentView.leadingAnchor constraintEqualToAnchor:self.scrollView.leadingAnchor],
+        [self.contentView.trailingAnchor constraintEqualToAnchor:self.scrollView.trailingAnchor],
+        [self.contentView.bottomAnchor constraintEqualToAnchor:self.scrollView.bottomAnchor],
+        [self.contentView.widthAnchor constraintEqualToAnchor:self.scrollView.widthAnchor],
+    ]];
 }
 
 - (void)setupMiniAppButtons {
     // AI笔记卡片容器
-    UIView *aiNoteCard = [self createMiniAppCardWithTitle:@"AI笔记"
+    self.aiNoteCard = [self createMiniAppCardWithTitle:@"AI笔记"
                                                 subtitle:@"智能笔记助手"
                                                   icon:@"📝"
                                             gradientColors:@[[UIColor colorWithRed:0.2 green:0.4 blue:1.0 alpha:1.0],
                                                              [UIColor colorWithRed:0.4 green:0.6 blue:1.0 alpha:1.0]]
                                                  target:self
                                                  action:@selector(aiNoteButtonTapped:)];
-    [self.view addSubview:aiNoteCard];
+    [self.contentView addSubview:self.aiNoteCard];
     
     // AI翻译卡片容器
-    UIView *aiTranslateCard = [self createMiniAppCardWithTitle:@"AI翻译"
+    self.aiTranslateCard = [self createMiniAppCardWithTitle:@"AI翻译"
                                                      subtitle:@"多语言翻译工具"
                                                        icon:@"🌐"
                                                  gradientColors:@[[UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0],
                                                                   [UIColor colorWithRed:0.4 green:0.9 blue:0.6 alpha:1.0]]
                                                       target:self
                                                       action:@selector(aiTranslateButtonTapped:)];
-    [self.view addSubview:aiTranslateCard];
+    [self.contentView addSubview:self.aiTranslateCard];
     
     // 布局约束
     [NSLayoutConstraint activateConstraints:@[
         // AI笔记卡片
-        [aiNoteCard.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [aiNoteCard.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:40],
-        [aiNoteCard.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
-        [aiNoteCard.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
-        [aiNoteCard.heightAnchor constraintEqualToConstant:120],
+        [self.aiNoteCard.centerXAnchor constraintEqualToAnchor:self.contentView.centerXAnchor],
+        [self.aiNoteCard.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:40],
+        [self.aiNoteCard.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:20],
+        [self.aiNoteCard.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-20],
+        [self.aiNoteCard.heightAnchor constraintEqualToConstant:120],
         
         // AI翻译卡片
-        [aiTranslateCard.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        [aiTranslateCard.topAnchor constraintEqualToAnchor:aiNoteCard.bottomAnchor constant:16],
-        [aiTranslateCard.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
-        [aiTranslateCard.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
-        [aiTranslateCard.heightAnchor constraintEqualToConstant:120],
+        [self.aiTranslateCard.centerXAnchor constraintEqualToAnchor:self.contentView.centerXAnchor],
+        [self.aiTranslateCard.topAnchor constraintEqualToAnchor:self.aiNoteCard.bottomAnchor constant:16],
+        [self.aiTranslateCard.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:20],
+        [self.aiTranslateCard.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-20],
+        [self.aiTranslateCard.heightAnchor constraintEqualToConstant:120],
+    ]];
+}
+
+- (void)setupDeviceListSection {
+    // 设备列表标题
+    self.deviceListTitleLabel = [[UILabel alloc] init];
+    self.deviceListTitleLabel.text = @"我的设备";
+    self.deviceListTitleLabel.font = [UIFont boldSystemFontOfSize:20];
+    self.deviceListTitleLabel.textColor = [UIColor labelColor];
+    self.deviceListTitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.contentView addSubview:self.deviceListTitleLabel];
+    
+    // 设备列表视图
+    self.deviceListView = [[DeviceListView alloc] init];
+    self.deviceListView.delegate = self;
+    self.deviceListView.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.contentView addSubview:self.deviceListView];
+    
+    // 布局约束
+    [NSLayoutConstraint activateConstraints:@[
+        // 设备列表标题
+        [self.deviceListTitleLabel.topAnchor constraintEqualToAnchor:self.aiTranslateCard.bottomAnchor constant:24],
+        [self.deviceListTitleLabel.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:20],
+        [self.deviceListTitleLabel.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-20],
+        
+        // 设备列表视图
+        [self.deviceListView.topAnchor constraintEqualToAnchor:self.deviceListTitleLabel.bottomAnchor constant:12],
+        [self.deviceListView.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
+        [self.deviceListView.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
+        [self.deviceListView.heightAnchor constraintEqualToConstant:160],
+        [self.deviceListView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor constant:-20],
     ]];
 }
 
@@ -357,6 +434,14 @@
     }];
     [alert addAction:createAction];
     
+    // 家庭管理选项
+    UIAlertAction *manageAction = [UIAlertAction actionWithTitle:@"家庭管理"
+                                                           style:UIAlertActionStyleDefault
+                                                         handler:^(UIAlertAction * _Nonnull action) {
+        [self familyManageButtonTapped:nil];
+    }];
+    [alert addAction:manageAction];
+    
     // 取消选项
     UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消"
                                                            style:UIAlertActionStyleCancel
@@ -385,6 +470,10 @@
             [HomeManager cacheHomeDetail:homeDetail];
             NSLog(@"家庭详细信息已更新缓存 - 名称: %@, ID: %lld", homeDetail.name, homeDetail.homeId);
         }
+        // 刷新设备列表
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self refreshDeviceList];
+        });
     } failure:^(NSError *error) {
         NSLog(@"查询家庭详细信息失败: %@", error.localizedDescription);
     }];
@@ -401,7 +490,7 @@
     self.navigationItem.titleView = self.homeSelectButton;
 }
 
-- (void)familyManageButtonTapped:(UIButton *)sender {
+- (void)familyManageButtonTapped:(id)sender {
     // 跳转到家庭管理页面
     id<ThingFamilyProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingFamilyProtocol)];
     if ([impl respondsToSelector:@selector(gotoFamilyManagement)]) {
@@ -449,6 +538,52 @@
     } failure:^(NSError *error) {
         NSLog(@"获取家庭列表失败: %@", error.localizedDescription);
     }];
+}
+
+- (void)addDeviceButtonTapped:(UIBarButtonItem *)sender {
+    NSLog(@"点击 添加设备 按钮");
+    
+    // 检查是否有当前家庭
+    ThingSmartHomeModel *currentHome = [HomeManager getCurrentHome];
+    if (!currentHome) {
+        [UIHelper showAlertInViewController:self title:@"提示" message:@"请先选择或创建一个家庭"];
+        return;
+    }
+    
+    // 设置配网完成回调
+    __weak typeof(self) weakSelf = self;
+    [[ActivatorService sharedInstance] setActivatorCompletion:^(NSArray * _Nullable deviceList) {
+        NSLog(@"配网完成，设备列表: %@", deviceList);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [weakSelf refreshDeviceList];
+            if (deviceList && deviceList.count > 0) {
+                [UIHelper showAlertInViewController:weakSelf title:@"提示" message:[NSString stringWithFormat:@"成功添加 %lu 个设备", (unsigned long)deviceList.count]];
+            }
+        });
+    }];
+    
+    // 进入配网页面
+    [[ActivatorService sharedInstance] gotoDeviceConfig];
+}
+
+- (void)refreshDeviceList {
+    [[DeviceService sharedInstance] getDeviceListWithSuccess:^(NSArray<ThingSmartDeviceModel *> * _Nullable deviceList) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.deviceListView reloadDevices:deviceList];
+        });
+    } failure:^(NSError *error) {
+        NSLog(@"获取设备列表失败: %@", error.localizedDescription);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.deviceListView reloadDevices:@[]];
+        });
+    }];
+}
+
+#pragma mark - DeviceListViewDelegate
+
+- (void)deviceListView:(UIView *)view didSelectDevice:(ThingSmartDeviceModel *)device {
+    NSLog(@"点击设备: %@", device.name);
+    // 可以在这里添加跳转到设备详情页面的逻辑
 }
 
 #pragma mark - CreateHomeViewControllerDelegate

@@ -169,26 +169,11 @@
             [self.loginButton setTitle:@"登录" forState:UIControlStateNormal];
             
             // 等待缓存加载完成，然后设置当前家庭并查询详细信息
-            // 添加超时机制，最多等待3秒
-            __block BOOL hasCalled = NO;
             [[HomeService sharedInstance] waitLoadCacheComplete:^(BOOL complete) {
-                if (hasCalled) return;
-                hasCalled = YES;
                 NSLog(@"缓存加载完成: %@", complete ? @"是" : @"否");
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    // 检查并创建默认家庭，然后设置当前家庭并查询详细信息
-                    [self setupCurrentHomeAndLoadDetail];
-                });
             }];
             
-            // 3秒后如果还没有回调，直接执行
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                if (!hasCalled) {
-                    hasCalled = YES;
-                    NSLog(@"缓存加载超时，直接执行设置家庭流程");
-                    [self setupCurrentHomeAndLoadDetail];
-                }
-            });
+            [self setupCurrentHomeAndLoadDetail];
         });
     } failure:^(NSError *error) {
         // 登录失败

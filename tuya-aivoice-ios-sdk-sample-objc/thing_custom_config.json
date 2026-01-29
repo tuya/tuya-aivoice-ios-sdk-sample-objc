@@ -7,6 +7,7 @@
         "needBle":true,
         "is_support_home_manager":true,
         "need_backgroud_audio":true,
+        "needQRCode": true,
         "hotspotPrefixs": ["AAA", "BBB"]
         
     },
