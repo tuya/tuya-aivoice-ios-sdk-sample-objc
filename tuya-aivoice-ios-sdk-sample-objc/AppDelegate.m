@@ -59,6 +59,9 @@
     // 初始化 MiniApp SDK
     [[ThingMiniAppClient initialClient] initialize];
     
+    // 开启 vConsole 调试开关
+    [[ThingMiniAppClient debugClient] vConsoleDebugEnable:YES];
+    
     // 注册配网协议实现
     [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingSmartHomeDataProtocol) withInstance:[ActivatorService sharedInstance]];
     
