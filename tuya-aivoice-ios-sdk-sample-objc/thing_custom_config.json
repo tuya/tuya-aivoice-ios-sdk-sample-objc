@@ -8,6 +8,7 @@
         "is_support_home_manager":true,
         "need_backgroud_audio":true,
         "needQRCode": true,
+        "device_detail_mini_program": true,
         "hotspotPrefixs": ["AAA", "BBB"]
         
     },

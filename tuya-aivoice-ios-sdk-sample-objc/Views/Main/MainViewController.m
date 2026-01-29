@@ -228,7 +228,7 @@
         [self.deviceListView.topAnchor constraintEqualToAnchor:self.deviceListTitleLabel.bottomAnchor constant:12],
         [self.deviceListView.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor],
         [self.deviceListView.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
-        [self.deviceListView.heightAnchor constraintEqualToConstant:160],
+        [self.deviceListView.heightAnchor constraintEqualToConstant:400],
         [self.deviceListView.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor constant:-20],
     ]];
 }
@@ -345,19 +345,6 @@
         cardView = (UIView *)sender;
     }
     
-    // 添加点击动画效果
-    if (cardView) {
-        [UIView animateWithDuration:0.1 animations:^{
-            cardView.transform = CGAffineTransformMakeScale(0.95, 0.95);
-            cardView.alpha = 0.8;
-        } completion:^(BOOL finished) {
-            [UIView animateWithDuration:0.1 animations:^{
-                cardView.transform = CGAffineTransformIdentity;
-                cardView.alpha = 1.0;
-            }];
-        }];
-    }
-    
     // AI笔记小程序 appID: tyylldwlb8411tg8u2
     NSString *appId = @"tyylldwlb8411tg8u2";
     
@@ -375,19 +362,6 @@
         cardView = (UIView *)sender;
     }
     
-    // 添加点击动画效果
-    if (cardView) {
-        [UIView animateWithDuration:0.1 animations:^{
-            cardView.transform = CGAffineTransformMakeScale(0.95, 0.95);
-            cardView.alpha = 0.8;
-        } completion:^(BOOL finished) {
-            [UIView animateWithDuration:0.1 animations:^{
-                cardView.transform = CGAffineTransformIdentity;
-                cardView.alpha = 1.0;
-            }];
-        }];
-    }
-    
     // AI翻译小程序 appID: ty0u9m1s5ea1k71m2h
     NSString *appId = @"ty0u9m1s5ea1k71m2h";
     [[ThingMiniAppClient coreClient] openMiniAppByAppId:appId];
@@ -403,7 +377,7 @@
                 // 没有家庭，创建默认家庭
                 NSLog(@"没有家庭，开始创建默认家庭");
                 NSString *defaultName = @"我的家庭";
-                NSString *defaultCity = @"北京";
+                NSString *defaultCity = @"杭州";
                 
                 [[HomeService sharedInstance] addHomeWithName:defaultName
                                                       geoName:defaultCity
@@ -522,7 +496,19 @@
 
 - (void)deviceListView:(UIView *)view didSelectDevice:(ThingSmartDeviceModel *)device {
     NSLog(@"点击设备: %@", device.name);
-    // 可以在这里添加跳转到设备详情页面的逻辑
+    
+    // 跳转到设备详情页
+    id<ThingDeviceDetailProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingDeviceDetailProtocol)];
+    if (impl && device.devId) {
+        ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
+        if (smartDevice && smartDevice.deviceModel) {
+            [impl gotoDeviceDetailDetailViewControllerWithDevice:smartDevice.deviceModel group:nil];
+        } else {
+            NSLog(@"无法创建设备对象，deviceId: %@", device.devId);
+        }
+    } else {
+        NSLog(@"无法获取设备详情协议实现或设备ID为空");
+    }
 }
 
 #pragma mark - ThingFamilyProtocol
