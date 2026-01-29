@@ -1,8 +1,8 @@
 {
     "config":
     {
-        "appId":"559179115",
-        "thingAppKey":"4tgckatqqp9swxtme79f",
+        "appId":"",
+        "thingAppKey":"",
         "appScheme":"AIVoiceDemo",
         "needBle":true,
         "is_support_home_manager":true,
