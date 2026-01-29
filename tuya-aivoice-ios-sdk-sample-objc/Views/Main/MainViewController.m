@@ -22,6 +22,7 @@
 @property (nonatomic, strong) UIButton *homeSelectButton;
 @property (nonatomic, strong) NSArray<ThingSmartHomeModel *> *homeList;
 @property (nonatomic, strong) ThingSmartHomeModel *selectedHome;
+@property (nonatomic, strong) ThingSmartHome *home;
 
 @end
 
@@ -422,36 +423,28 @@
         dispatch_async(dispatch_get_main_queue(), ^{
             self.homeList = (NSArray<ThingSmartHomeModel *> *)result;
             
-            // 如果没有选择家庭，尝试设置当前家庭或第一个家庭
-            if (!self.selectedHome) {
-                ThingSmartHomeModel *currentHome = [HomeManager getCurrentHome];
-                if (currentHome) {
-                    self.selectedHome = currentHome;
-                } else if (self.homeList.count > 0) {
-                    self.selectedHome = self.homeList.firstObject;
-                    [HomeManager setCurrentHome:self.selectedHome];
-                }
-            }
-            
-            // 如果已选择家庭，检查是否需要查询详细信息
-            if (self.selectedHome) {
-                ThingSmartHomeModel *cachedDetail = [HomeManager getCachedHomeDetail];
-                // 如果缓存不存在或缓存的家庭ID与当前家庭ID不一致，则查询详细信息
-                if (!cachedDetail || cachedDetail.homeId != self.selectedHome.homeId) {
-                    [[HomeService sharedInstance] getHomeDataWithHomeId:self.selectedHome.homeId
-                                                                success:^(id result) {
-                        ThingSmartHomeModel *homeDetail = (ThingSmartHomeModel *)result;
-                        if (homeDetail) {
-                            [HomeManager cacheHomeDetail:homeDetail];
-                            NSLog(@"家庭详细信息已缓存 - 名称: %@, ID: %lld", homeDetail.name, homeDetail.homeId);
-                        }
+            if (self.homeList.count == 0) {
+                
+                [[[ThingSmartHomeManager alloc] init] addHomeWithName:@"home" geoName:@"hangzhou" rooms:@[] latitude:0.0 longitude:0.0 success:^(long long result) {
+                    NSLog(@"创建家庭成功，homeId: %lld", result);
+                    self.home = [ThingSmartHome homeWithHomeId:result];
+                    [self.home getHomeDataWithSuccess:^(ThingSmartHomeModel * _Nonnull homeModel) {
+                        NSLog(@"获取家庭详情成功，homeId: %lld", homeModel.homeId);
                     } failure:^(NSError *error) {
-                        NSLog(@"查询家庭详细信息失败: %@", error.localizedDescription);
+                        
                     }];
-                }
+                } failure:^(NSError * _Nonnull error) {
+                    NSLog(@"创建家庭失败: %@", error.localizedDescription);
+                }];
+            } else {
+                ThingSmartHomeModel *homeModel = [self.homeList firstObject];
+                self.home = [ThingSmartHome homeWithHomeId:homeModel.homeId];
+                [self.home getHomeDataWithSuccess:^(ThingSmartHomeModel * _Nonnull homeModel) {
+                    NSLog(@"获取家庭详情成功，homeId: %lld", homeModel.homeId);
+                } failure:^(NSError *error) {
+                    
+                }];
             }
-            
-            [self updateHomeSelectButtonTitle];
         });
     } failure:^(NSError *error) {
         NSLog(@"获取家庭列表失败: %@", error.localizedDescription);
