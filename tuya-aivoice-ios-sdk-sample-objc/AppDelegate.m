@@ -48,6 +48,11 @@
     // 这个方法只是为了兼容性而存在
 }
 
+/*
+ MARK: AIVoice SDK初始化
+ SDK初始化配置，详情请参考：
+ https://developer.tuya.com/cn/docs/app-development/integrate-sdk?id=Ka5d52ewngdoi
+*/
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
     [[ThingSmartSDK sharedInstance] startWithAppKey:APP_KEY secretKey:APP_SECRET_KEY];

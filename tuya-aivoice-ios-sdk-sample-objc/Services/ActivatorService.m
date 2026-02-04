@@ -33,17 +33,6 @@
     return instance;
 }
 
-//#pragma mark - ThingFamilyProtocol
-//- (long long)currentFamilyId {
-//    ThingSmartHome *home = [[ThingSmartHomeManager new] homes];
-//    if (!home) {
-//        NSLog(@"ActivatorService: 当前家庭不存在，无法进行配网");
-//        return 0;
-//    }
-//    return home.homeId;
-//}
-
-
 #pragma mark - Public Methods
 
 - (void)gotoDeviceConfig {

@@ -6,6 +6,7 @@
 //
 
 #import "MainViewController.h"
+#import "MiniAppRoutes.h"
 #import "UIHelper.h"
 #import "ActivatorService.h"
 #import "DeviceService.h"
@@ -176,9 +177,9 @@
     
     // AI笔记快捷功能区域（卡片内部底部）
     self.aiNoteQuickActionsView = [self createQuickActionsViewWithActions:@[
-        @{@"title": @"录音", @"icon": @"mic.fill", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Ftyylldwlb8411tg8u2%2Fpages%2Fhome%2Findex%3FmodeKey%3DliveRecording"},
-        @{@"title": @"同声传译", @"icon": @"waveform.path", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Ftyylldwlb8411tg8u2%2Fpages%2Fhome%2Findex%3FmodeKey%3DsimultaneousInterpretation"},
-        @{@"title": @"实时转写", @"icon": @"text.bubble.fill", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Ftyylldwlb8411tg8u2%2Fpages%2Fhome%2Findex%3FmodeKey%3DrealTimeRecording"}
+        @{@"title": @"录音", @"icon": @"mic.fill", @"url": kMiniAppURLAINoteLiveRecording},
+        @{@"title": @"同声传译", @"icon": @"waveform.path", @"url": kMiniAppURLAINoteSimultaneousInterpretation},
+        @{@"title": @"实时转写", @"icon": @"text.bubble.fill", @"url": kMiniAppURLAINoteRealTimeRecording}
     ]];
     [self.aiNoteCard addSubview:self.aiNoteQuickActionsView];
     
@@ -194,8 +195,8 @@
     
     // AI翻译快捷功能区域（卡片内部底部）
     self.aiTranslateQuickActionsView = [self createQuickActionsViewWithActions:@[
-        @{@"title": @"同声传译", @"icon": @"waveform.path", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Fty0u9m1s5ea1k71m2h%2Fpages%2Fsimultaneous%2Findex"},
-        @{@"title": @"对话翻译", @"icon": @"message.fill", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Fty0u9m1s5ea1k71m2h%2Fpages%2FFaceToFace%2Findex"}
+        @{@"title": @"同声传译", @"icon": @"waveform.path", @"url": kMiniAppURLAITranslateSimultaneous},
+        @{@"title": @"对话翻译", @"icon": @"message.fill", @"url": kMiniAppURLAITranslateFaceToFace}
     ]];
     [self.aiTranslateCard addSubview:self.aiTranslateQuickActionsView];
     
@@ -631,10 +632,7 @@
         cardView = (UIView *)sender;
     }
     
-    // AI笔记小程序 appID: tyylldwlb8411tg8u2
-    NSString *appId = @"tyylldwlb8411tg8u2";
-    
-    [[ThingMiniAppClient coreClient] openMiniAppByAppId:appId];
+    [[ThingMiniAppClient coreClient] openMiniAppByAppId:kMiniAppIdAINote];
 }
 
 - (void)aiTranslateButtonTapped:(id)sender {
@@ -648,12 +646,79 @@
         cardView = (UIView *)sender;
     }
     
-    // AI翻译小程序 appID: ty0u9m1s5ea1k71m2h
-    NSString *appId = @"ty0u9m1s5ea1k71m2h";
-    [[ThingMiniAppClient coreClient] openMiniAppByAppId:appId];
+    [[ThingMiniAppClient coreClient] openMiniAppByAppId:kMiniAppIdAITranslate];
 }
 
+- (void)addDeviceButtonTapped:(UIBarButtonItem *)sender {
+    NSLog(@"点击 添加设备 按钮");
+    
+    // 检查是否有当前家庭
+    ThingSmartHomeModel *currentHome = self.currentHome;
+    if (!currentHome) {
+        [UIHelper showAlertInViewController:self title:@"提示" message:@"请稍候，正在加载家庭信息"];
+        return;
+    }
+    
+    // 设置配网完成回调
+    __weak typeof(self) weakSelf = self;
+    [[ActivatorService sharedInstance] setActivatorCompletion:^(NSArray * _Nullable deviceList) {
+        NSLog(@"配网完成，设备列表: %@", deviceList);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [weakSelf refreshDeviceList];
+            if (deviceList && deviceList.count > 0) {
+                [UIHelper showAlertInViewController:weakSelf title:@"提示" message:[NSString stringWithFormat:@"成功添加 %lu 个设备", (unsigned long)deviceList.count]];
+            }
+        });
+    }];
+    
+    // 进入配网页面
+    [[ActivatorService sharedInstance] gotoDeviceConfig];
+}
 
+- (void)refreshDeviceList {
+    [[DeviceService sharedInstance] getDeviceListWithSuccess:^(NSArray<ThingSmartDeviceModel *> * _Nullable deviceList) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.deviceListView reloadDevices:deviceList];
+        });
+    } failure:^(NSError *error) {
+        NSLog(@"获取设备列表失败: %@", error.localizedDescription);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.deviceListView reloadDevices:@[]];
+        });
+    }];
+}
+
+#pragma mark - 设备相关
+
+/*
+ MARK: AIVoice 跳转设备详情页
+ 如果需要跳转到tuya的设备面板，可以调用 gotoDeviceDetailDetailViewControllerWithDevice 进行跳转，
+ 需要保证有包含设备详情的UI业务包同时初始化了小程序
+*/
+- (void)deviceListView:(UIView *)view didSelectDevice:(ThingSmartDeviceModel *)device {
+    NSLog(@"点击设备: %@", device.name);
+    
+    // 跳转到设备详情页
+    id<ThingDeviceDetailProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingDeviceDetailProtocol)];
+    if (impl && device.devId) {
+        ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
+        if (smartDevice && smartDevice.deviceModel) {
+            [impl gotoDeviceDetailDetailViewControllerWithDevice:smartDevice.deviceModel group:nil];
+        } else {
+            NSLog(@"无法创建设备对象，deviceId: %@", device.devId);
+        }
+    } else {
+        NSLog(@"无法获取设备详情协议实现或设备ID为空");
+    }
+}
+
+#pragma mark - 家庭相关
+/*
+ MARK: AIVoice 加载家庭
+ Tuya的SDK 致力于为全屋智能业务场景的移动端开发提供各类模块和组件。因此，家庭是抽象于全屋智能场景的概念，指用户在以家或者场所为单位的范围内所有设备、账号、权限等信息的集合
+ 所以必须保证项目起码有一个家庭，注册接口中可以给用户默认创建一个家庭，同时也可以参考以下代码创建并切换家庭
+ 详情请参考: https://developer.tuya.com/cn/docs/app-development/home?id=Ka5d52ey6e58h
+*/
 - (void)loadHomeList {
     ThingSmartHomeManager *homeManager = [ThingSmartHomeManager new];
     [homeManager getHomeListWithSuccess:^(NSArray<ThingSmartHomeModel *> *homes) {
@@ -727,66 +792,11 @@
     }];
 }
 
-- (void)addDeviceButtonTapped:(UIBarButtonItem *)sender {
-    NSLog(@"点击 添加设备 按钮");
-    
-    // 检查是否有当前家庭
-    ThingSmartHomeModel *currentHome = self.currentHome;
-    if (!currentHome) {
-        [UIHelper showAlertInViewController:self title:@"提示" message:@"请稍候，正在加载家庭信息"];
-        return;
-    }
-    
-    // 设置配网完成回调
-    __weak typeof(self) weakSelf = self;
-    [[ActivatorService sharedInstance] setActivatorCompletion:^(NSArray * _Nullable deviceList) {
-        NSLog(@"配网完成，设备列表: %@", deviceList);
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [weakSelf refreshDeviceList];
-            if (deviceList && deviceList.count > 0) {
-                [UIHelper showAlertInViewController:weakSelf title:@"提示" message:[NSString stringWithFormat:@"成功添加 %lu 个设备", (unsigned long)deviceList.count]];
-            }
-        });
-    }];
-    
-    // 进入配网页面
-    [[ActivatorService sharedInstance] gotoDeviceConfig];
-}
-
-- (void)refreshDeviceList {
-    [[DeviceService sharedInstance] getDeviceListWithSuccess:^(NSArray<ThingSmartDeviceModel *> * _Nullable deviceList) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self.deviceListView reloadDevices:deviceList];
-        });
-    } failure:^(NSError *error) {
-        NSLog(@"获取设备列表失败: %@", error.localizedDescription);
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self.deviceListView reloadDevices:@[]];
-        });
-    }];
-}
-
-#pragma mark - DeviceListViewDelegate
-
-- (void)deviceListView:(UIView *)view didSelectDevice:(ThingSmartDeviceModel *)device {
-    NSLog(@"点击设备: %@", device.name);
-    
-    // 跳转到设备详情页
-    id<ThingDeviceDetailProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingDeviceDetailProtocol)];
-    if (impl && device.devId) {
-        ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
-        if (smartDevice && smartDevice.deviceModel) {
-            [impl gotoDeviceDetailDetailViewControllerWithDevice:smartDevice.deviceModel group:nil];
-        } else {
-            NSLog(@"无法创建设备对象，deviceId: %@", device.devId);
-        }
-    } else {
-        NSLog(@"无法获取设备详情协议实现或设备ID为空");
-    }
-}
-
-#pragma mark - ThingFamilyProtocol
-
+/*
+ MARK: AIVoice 设置当前家庭
+ 在创建完家庭后，需要设置当前家庭才能获取到家庭下的设备信息，
+ 如果只有一个家庭，请保证界面初始化时调用 updateCurrentFamilyId 更新当前家庭
+*/
 - (void)initCurrentHome {
     if (!self.currentHome) {
         NSLog(@"initCurrentHome: 当前家庭不存在，无法初始化");
