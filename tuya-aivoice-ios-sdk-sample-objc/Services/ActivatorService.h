@@ -6,14 +6,12 @@
 //
 
 #import <Foundation/Foundation.h>
-#import <ThingModuleServices/ThingSmartHomeDataProtocol.h>
-#import <ThingModuleServices/ThingActivatorProtocol.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
 typedef void(^ActivatorCompletionBlock)(NSArray * _Nullable deviceList);
 
-@interface ActivatorService : NSObject <ThingSmartHomeDataProtocol>
+@interface ActivatorService : NSObject
 
 + (instancetype)sharedInstance;
 

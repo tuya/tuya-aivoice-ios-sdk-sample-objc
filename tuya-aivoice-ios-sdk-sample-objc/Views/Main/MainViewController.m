@@ -6,8 +6,6 @@
 //
 
 #import "MainViewController.h"
-#import "HomeService.h"
-#import "HomeManager.h"
 #import "UIHelper.h"
 #import "ActivatorService.h"
 #import "DeviceService.h"
@@ -27,7 +25,9 @@
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIView *contentView;
 @property (nonatomic, strong) UIView *aiNoteCard;
+@property (nonatomic, strong) UIView *aiNoteQuickActionsView;
 @property (nonatomic, strong) UIView *aiTranslateCard;
+@property (nonatomic, strong) UIView *aiTranslateQuickActionsView;
 @property (nonatomic, strong) UILabel *deviceListTitleLabel;
 @property (nonatomic, strong) DeviceListView *deviceListView;
 
@@ -166,23 +166,38 @@
 - (void)setupMiniAppButtons {
     // AI笔记卡片容器
     self.aiNoteCard = [self createMiniAppCardWithTitle:@"AI笔记"
-                                                subtitle:@"智能笔记助手"
-                                                  icon:@"📝"
-                                            gradientColors:@[[UIColor colorWithRed:0.2 green:0.4 blue:1.0 alpha:1.0],
-                                                             [UIColor colorWithRed:0.4 green:0.6 blue:1.0 alpha:1.0]]
+                                               subtitle:@"智能笔记助手"
+                                                   icon:@"📝"
+                                         gradientColors:@[[UIColor colorWithRed:0.15 green:0.35 blue:0.95 alpha:1.0],
+                                                          [UIColor colorWithRed:0.35 green:0.55 blue:1.0 alpha:1.0]]
                                                  target:self
                                                  action:@selector(aiNoteButtonTapped:)];
     [self.contentView addSubview:self.aiNoteCard];
     
+    // AI笔记快捷功能区域（卡片内部底部）
+    self.aiNoteQuickActionsView = [self createQuickActionsViewWithActions:@[
+        @{@"title": @"录音", @"icon": @"mic.fill", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Ftyylldwlb8411tg8u2%2Fpages%2Fhome%2Findex%3FmodeKey%3DliveRecording"},
+        @{@"title": @"同声传译", @"icon": @"waveform.path", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Ftyylldwlb8411tg8u2%2Fpages%2Fhome%2Findex%3FmodeKey%3DsimultaneousInterpretation"},
+        @{@"title": @"实时转写", @"icon": @"text.bubble.fill", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Ftyylldwlb8411tg8u2%2Fpages%2Fhome%2Findex%3FmodeKey%3DrealTimeRecording"}
+    ]];
+    [self.aiNoteCard addSubview:self.aiNoteQuickActionsView];
+    
     // AI翻译卡片容器
     self.aiTranslateCard = [self createMiniAppCardWithTitle:@"AI翻译"
-                                                     subtitle:@"多语言翻译工具"
-                                                       icon:@"🌐"
-                                                 gradientColors:@[[UIColor colorWithRed:0.2 green:0.8 blue:0.4 alpha:1.0],
-                                                                  [UIColor colorWithRed:0.4 green:0.9 blue:0.6 alpha:1.0]]
-                                                      target:self
-                                                      action:@selector(aiTranslateButtonTapped:)];
+                                                    subtitle:@"多语言翻译工具"
+                                                        icon:@"🌐"
+                                              gradientColors:@[[UIColor colorWithRed:0.15 green:0.75 blue:0.35 alpha:1.0],
+                                                               [UIColor colorWithRed:0.35 green:0.85 blue:0.55 alpha:1.0]]
+                                                     target:self
+                                                     action:@selector(aiTranslateButtonTapped:)];
     [self.contentView addSubview:self.aiTranslateCard];
+    
+    // AI翻译快捷功能区域（卡片内部底部）
+    self.aiTranslateQuickActionsView = [self createQuickActionsViewWithActions:@[
+        @{@"title": @"同声传译", @"icon": @"waveform.path", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Fty0u9m1s5ea1k71m2h%2Fpages%2Fsimultaneous%2Findex"},
+        @{@"title": @"对话翻译", @"icon": @"message.fill", @"url": @"thingSmart://miniApp?url=godzilla%3A%2F%2Fty0u9m1s5ea1k71m2h%2Fpages%2FFaceToFace%2Findex"}
+    ]];
+    [self.aiTranslateCard addSubview:self.aiTranslateQuickActionsView];
     
     // 布局约束
     [NSLayoutConstraint activateConstraints:@[
@@ -191,14 +206,25 @@
         [self.aiNoteCard.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:40],
         [self.aiNoteCard.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:20],
         [self.aiNoteCard.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-20],
-        [self.aiNoteCard.heightAnchor constraintEqualToConstant:120],
+        [self.aiNoteCard.heightAnchor constraintEqualToConstant:200],
+        
+        // AI笔记快捷功能区域（卡片内部底部）
+        [self.aiNoteQuickActionsView.leadingAnchor constraintEqualToAnchor:self.aiNoteCard.leadingAnchor constant:16],
+        [self.aiNoteQuickActionsView.trailingAnchor constraintEqualToAnchor:self.aiNoteCard.trailingAnchor constant:-16],
+        [self.aiNoteQuickActionsView.bottomAnchor constraintEqualToAnchor:self.aiNoteCard.bottomAnchor constant:-16],
+        [self.aiNoteQuickActionsView.heightAnchor constraintEqualToConstant:80],
         
         // AI翻译卡片
-        [self.aiTranslateCard.centerXAnchor constraintEqualToAnchor:self.contentView.centerXAnchor],
-        [self.aiTranslateCard.topAnchor constraintEqualToAnchor:self.aiNoteCard.bottomAnchor constant:16],
+        [self.aiTranslateCard.topAnchor constraintEqualToAnchor:self.aiNoteCard.bottomAnchor constant:20],
         [self.aiTranslateCard.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:20],
         [self.aiTranslateCard.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-20],
-        [self.aiTranslateCard.heightAnchor constraintEqualToConstant:120],
+        [self.aiTranslateCard.heightAnchor constraintEqualToConstant:200],
+        
+        // AI翻译快捷功能区域（卡片内部底部）
+        [self.aiTranslateQuickActionsView.leadingAnchor constraintEqualToAnchor:self.aiTranslateCard.leadingAnchor constant:16],
+        [self.aiTranslateQuickActionsView.trailingAnchor constraintEqualToAnchor:self.aiTranslateCard.trailingAnchor constant:-16],
+        [self.aiTranslateQuickActionsView.bottomAnchor constraintEqualToAnchor:self.aiTranslateCard.bottomAnchor constant:-16],
+        [self.aiTranslateQuickActionsView.heightAnchor constraintEqualToConstant:80],
     ]];
 }
 
@@ -242,7 +268,7 @@
     // 创建卡片容器
     UIView *cardView = [[UIView alloc] init];
     cardView.translatesAutoresizingMaskIntoConstraints = NO;
-    cardView.layer.cornerRadius = 16;
+    cardView.layer.cornerRadius = 20;
     cardView.backgroundColor = [UIColor clearColor];
     
     // 添加渐变背景
@@ -250,7 +276,7 @@
     gradientLayer.colors = @[(__bridge id)colors[0].CGColor, (__bridge id)colors[1].CGColor];
     gradientLayer.startPoint = CGPointMake(0, 0);
     gradientLayer.endPoint = CGPointMake(1, 1);
-    gradientLayer.cornerRadius = 16;
+    gradientLayer.cornerRadius = 20;
     [cardView.layer insertSublayer:gradientLayer atIndex:0];
     
     // 保存渐变层引用以便在viewDidLayoutSubviews中更新frame
@@ -259,14 +285,14 @@
     // 添加阴影（注意：masksToBounds需要为NO才能显示阴影）
     cardView.layer.shadowColor = [UIColor blackColor].CGColor;
     cardView.layer.shadowOffset = CGSizeMake(0, 4);
-    cardView.layer.shadowRadius = 12;
-    cardView.layer.shadowOpacity = 0.2;
+    cardView.layer.shadowRadius = 16;
+    cardView.layer.shadowOpacity = 0.25;
     cardView.layer.masksToBounds = NO;
     
     // 图标标签
     UILabel *iconLabel = [[UILabel alloc] init];
     iconLabel.text = icon;
-    iconLabel.font = [UIFont systemFontOfSize:48];
+    iconLabel.font = [UIFont systemFontOfSize:56];
     iconLabel.textAlignment = NSTextAlignmentCenter;
     iconLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [cardView addSubview:iconLabel];
@@ -274,7 +300,7 @@
     // 标题标签
     UILabel *titleLabel = [[UILabel alloc] init];
     titleLabel.text = title;
-    titleLabel.font = [UIFont boldSystemFontOfSize:22];
+    titleLabel.font = [UIFont boldSystemFontOfSize:24];
     titleLabel.textColor = [UIColor whiteColor];
     titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [cardView addSubview:titleLabel];
@@ -282,41 +308,28 @@
     // 副标题标签
     UILabel *subtitleLabel = [[UILabel alloc] init];
     subtitleLabel.text = subtitle;
-    subtitleLabel.font = [UIFont systemFontOfSize:14];
-    subtitleLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.9];
+    subtitleLabel.font = [UIFont systemFontOfSize:15];
+    subtitleLabel.textColor = [UIColor colorWithWhite:1.0 alpha:0.95];
     subtitleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [cardView addSubview:subtitleLabel];
     
-    // 右箭头图标
-    UIImageView *arrowImageView = [[UIImageView alloc] init];
-    arrowImageView.image = [UIImage systemImageNamed:@"chevron.right"];
-    arrowImageView.tintColor = [UIColor whiteColor];
-    arrowImageView.translatesAutoresizingMaskIntoConstraints = NO;
-    [cardView addSubview:arrowImageView];
-    
     // 布局约束
     [NSLayoutConstraint activateConstraints:@[
-        // 图标
-        [iconLabel.leadingAnchor constraintEqualToAnchor:cardView.leadingAnchor constant:20],
-        [iconLabel.centerYAnchor constraintEqualToAnchor:cardView.centerYAnchor],
-        [iconLabel.widthAnchor constraintEqualToConstant:60],
-        [iconLabel.heightAnchor constraintEqualToConstant:60],
+        // 图标放在卡片上半部分偏上位置
+        [iconLabel.topAnchor constraintEqualToAnchor:cardView.topAnchor constant:24],
+        [iconLabel.leadingAnchor constraintEqualToAnchor:cardView.leadingAnchor constant:24],
+        [iconLabel.widthAnchor constraintEqualToConstant:70],
+        [iconLabel.heightAnchor constraintEqualToConstant:70],
         
         // 标题
-        [titleLabel.leadingAnchor constraintEqualToAnchor:iconLabel.trailingAnchor constant:16],
-        [titleLabel.topAnchor constraintEqualToAnchor:cardView.centerYAnchor constant:-20],
-        [titleLabel.trailingAnchor constraintEqualToAnchor:arrowImageView.leadingAnchor constant:-16],
+        [titleLabel.leadingAnchor constraintEqualToAnchor:iconLabel.trailingAnchor constant:18],
+        [titleLabel.topAnchor constraintEqualToAnchor:iconLabel.topAnchor constant:4],
+        [titleLabel.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-24],
         
         // 副标题
-        [subtitleLabel.leadingAnchor constraintEqualToAnchor:iconLabel.trailingAnchor constant:16],
-        [subtitleLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:4],
-        [subtitleLabel.trailingAnchor constraintEqualToAnchor:arrowImageView.leadingAnchor constant:-16],
-        
-        // 箭头
-        [arrowImageView.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-20],
-        [arrowImageView.centerYAnchor constraintEqualToAnchor:cardView.centerYAnchor],
-        [arrowImageView.widthAnchor constraintEqualToConstant:20],
-        [arrowImageView.heightAnchor constraintEqualToConstant:20],
+        [subtitleLabel.leadingAnchor constraintEqualToAnchor:iconLabel.trailingAnchor constant:18],
+        [subtitleLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:6],
+        [subtitleLabel.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-24],
     ]];
     
     // 添加点击手势
@@ -331,8 +344,281 @@
     return cardView;
 }
 
-- (void)cardLongPress:(UILongPressGestureRecognizer *)gesture {
-    // 此方法已移除，不再使用
+- (UIView *)createQuickActionsContainerWithActions:(NSArray<NSDictionary *> *)actions parentView:(UIView *)parentView {
+    UIView *containerView = [[UIView alloc] init];
+    containerView.translatesAutoresizingMaskIntoConstraints = NO;
+    containerView.backgroundColor = [UIColor clearColor];
+    
+    // 创建横向滚动视图
+    UIScrollView *scrollView = [[UIScrollView alloc] init];
+    scrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    scrollView.showsHorizontalScrollIndicator = NO;
+    scrollView.showsVerticalScrollIndicator = NO;
+    scrollView.backgroundColor = [UIColor clearColor];
+    [containerView addSubview:scrollView];
+    
+    // 创建内容视图
+    UIView *contentView = [[UIView alloc] init];
+    contentView.translatesAutoresizingMaskIntoConstraints = NO;
+    [scrollView addSubview:contentView];
+    
+    NSMutableArray<UIView *> *actionButtons = [NSMutableArray array];
+    
+    // 创建快捷功能按钮
+    for (NSInteger i = 0; i < actions.count; i++) {
+        NSDictionary *action = actions[i];
+        NSString *title = action[@"title"];
+        NSString *iconName = action[@"icon"];
+        NSString *url = action[@"url"];
+        
+        // 创建按钮容器（半透明白色背景）
+        UIView *buttonContainer = [[UIView alloc] init];
+        buttonContainer.translatesAutoresizingMaskIntoConstraints = NO;
+        buttonContainer.backgroundColor = [UIColor colorWithWhite:1.0 alpha:0.25];
+        buttonContainer.layer.cornerRadius = 12;
+        buttonContainer.layer.borderWidth = 1.0;
+        buttonContainer.layer.borderColor = [UIColor colorWithWhite:1.0 alpha:0.3].CGColor;
+        [contentView addSubview:buttonContainer];
+        
+        // 图标
+        UIImageView *iconView = [[UIImageView alloc] init];
+        iconView.image = [UIImage systemImageNamed:iconName];
+        iconView.tintColor = [UIColor whiteColor];
+        iconView.contentMode = UIViewContentModeScaleAspectFit;
+        iconView.translatesAutoresizingMaskIntoConstraints = NO;
+        [buttonContainer addSubview:iconView];
+        
+        // 标题
+        UILabel *titleLabel = [[UILabel alloc] init];
+        titleLabel.text = title;
+        titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
+        titleLabel.textColor = [UIColor whiteColor];
+        titleLabel.textAlignment = NSTextAlignmentCenter;
+        titleLabel.numberOfLines = 1;
+        titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+        [buttonContainer addSubview:titleLabel];
+        
+        // 布局约束
+        [NSLayoutConstraint activateConstraints:@[
+            [iconView.topAnchor constraintEqualToAnchor:buttonContainer.topAnchor constant:10],
+            [iconView.centerXAnchor constraintEqualToAnchor:buttonContainer.centerXAnchor],
+            [iconView.widthAnchor constraintEqualToConstant:22],
+            [iconView.heightAnchor constraintEqualToConstant:22],
+            
+            [titleLabel.topAnchor constraintEqualToAnchor:iconView.bottomAnchor constant:6],
+            [titleLabel.leadingAnchor constraintEqualToAnchor:buttonContainer.leadingAnchor constant:6],
+            [titleLabel.trailingAnchor constraintEqualToAnchor:buttonContainer.trailingAnchor constant:-6],
+            [titleLabel.bottomAnchor constraintEqualToAnchor:buttonContainer.bottomAnchor constant:-10],
+        ]];
+        
+        // 添加点击手势
+        UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(quickActionTapped:)];
+        tapGesture.cancelsTouchesInView = YES;
+        buttonContainer.userInteractionEnabled = YES;
+        [buttonContainer addGestureRecognizer:tapGesture];
+        
+        // 保存URL到关联对象
+        objc_setAssociatedObject(buttonContainer, "actionURL", url, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        
+        [actionButtons addObject:buttonContainer];
+    }
+    
+    // 布局按钮
+    if (actionButtons.count > 0) {
+        UIView *firstButton = actionButtons[0];
+        [NSLayoutConstraint activateConstraints:@[
+            [firstButton.leadingAnchor constraintEqualToAnchor:contentView.leadingAnchor],
+            [firstButton.topAnchor constraintEqualToAnchor:contentView.topAnchor],
+            [firstButton.bottomAnchor constraintEqualToAnchor:contentView.bottomAnchor],
+            [firstButton.widthAnchor constraintEqualToConstant:70],
+        ]];
+        
+        for (NSInteger i = 1; i < actionButtons.count; i++) {
+            UIView *prevButton = actionButtons[i - 1];
+            UIView *currentButton = actionButtons[i];
+            
+            [NSLayoutConstraint activateConstraints:@[
+                [currentButton.leadingAnchor constraintEqualToAnchor:prevButton.trailingAnchor constant:10],
+                [currentButton.topAnchor constraintEqualToAnchor:contentView.topAnchor],
+                [currentButton.bottomAnchor constraintEqualToAnchor:contentView.bottomAnchor],
+                [currentButton.widthAnchor constraintEqualToConstant:70],
+            ]];
+        }
+        
+        UIView *lastButton = actionButtons.lastObject;
+        [NSLayoutConstraint activateConstraints:@[
+            [lastButton.trailingAnchor constraintEqualToAnchor:contentView.trailingAnchor],
+        ]];
+    }
+    
+    // 布局滚动视图和内容视图
+    [NSLayoutConstraint activateConstraints:@[
+        [scrollView.topAnchor constraintEqualToAnchor:containerView.topAnchor],
+        [scrollView.leadingAnchor constraintEqualToAnchor:containerView.leadingAnchor],
+        [scrollView.trailingAnchor constraintEqualToAnchor:containerView.trailingAnchor],
+        [scrollView.bottomAnchor constraintEqualToAnchor:containerView.bottomAnchor],
+        
+        [contentView.topAnchor constraintEqualToAnchor:scrollView.topAnchor],
+        [contentView.leadingAnchor constraintEqualToAnchor:scrollView.leadingAnchor],
+        [contentView.trailingAnchor constraintEqualToAnchor:scrollView.trailingAnchor],
+        [contentView.bottomAnchor constraintEqualToAnchor:scrollView.bottomAnchor],
+        [contentView.heightAnchor constraintEqualToAnchor:scrollView.heightAnchor],
+    ]];
+    
+    return containerView;
+}
+
+- (UIView *)createQuickActionsViewWithActions:(NSArray<NSDictionary *> *)actions {
+    UIView *containerView = [[UIView alloc] init];
+    containerView.translatesAutoresizingMaskIntoConstraints = NO;
+    containerView.backgroundColor = [UIColor clearColor];
+    
+    // 创建横向滚动视图
+    UIScrollView *scrollView = [[UIScrollView alloc] init];
+    scrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    scrollView.showsHorizontalScrollIndicator = NO;
+    scrollView.showsVerticalScrollIndicator = NO;
+    scrollView.backgroundColor = [UIColor clearColor];
+    [containerView addSubview:scrollView];
+    
+    // 创建内容视图
+    UIView *contentView = [[UIView alloc] init];
+    contentView.translatesAutoresizingMaskIntoConstraints = NO;
+    [scrollView addSubview:contentView];
+    
+    NSMutableArray<UIView *> *actionButtons = [NSMutableArray array];
+    
+    // 创建快捷功能按钮
+    for (NSInteger i = 0; i < actions.count; i++) {
+        NSDictionary *action = actions[i];
+        NSString *title = action[@"title"];
+        NSString *iconName = action[@"icon"];
+        NSString *url = action[@"url"];
+        
+        // 创建按钮容器（浅色背景，与卡片形成对比）
+        UIView *buttonContainer = [[UIView alloc] init];
+        buttonContainer.translatesAutoresizingMaskIntoConstraints = NO;
+        buttonContainer.backgroundColor = [UIColor secondarySystemBackgroundColor];
+        buttonContainer.layer.cornerRadius = 14;
+        buttonContainer.layer.shadowColor = [UIColor blackColor].CGColor;
+        buttonContainer.layer.shadowOffset = CGSizeMake(0, 2);
+        buttonContainer.layer.shadowRadius = 6;
+        buttonContainer.layer.shadowOpacity = 0.08;
+        [contentView addSubview:buttonContainer];
+        
+        // 图标
+        UIImageView *iconView = [[UIImageView alloc] init];
+        iconView.image = [UIImage systemImageNamed:iconName];
+        iconView.tintColor = [UIColor systemBlueColor];
+        iconView.contentMode = UIViewContentModeScaleAspectFit;
+        iconView.translatesAutoresizingMaskIntoConstraints = NO;
+        [buttonContainer addSubview:iconView];
+        
+        // 标题
+        UILabel *titleLabel = [[UILabel alloc] init];
+        titleLabel.text = title;
+        titleLabel.font = [UIFont systemFontOfSize:13 weight:UIFontWeightMedium];
+        titleLabel.textColor = [UIColor labelColor];
+        titleLabel.textAlignment = NSTextAlignmentCenter;
+        titleLabel.numberOfLines = 1;
+        titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+        [buttonContainer addSubview:titleLabel];
+        
+        // 布局约束
+        [NSLayoutConstraint activateConstraints:@[
+            [iconView.topAnchor constraintEqualToAnchor:buttonContainer.topAnchor constant:12],
+            [iconView.centerXAnchor constraintEqualToAnchor:buttonContainer.centerXAnchor],
+            [iconView.widthAnchor constraintEqualToConstant:24],
+            [iconView.heightAnchor constraintEqualToConstant:24],
+            
+            [titleLabel.topAnchor constraintEqualToAnchor:iconView.bottomAnchor constant:6],
+            [titleLabel.leadingAnchor constraintEqualToAnchor:buttonContainer.leadingAnchor constant:8],
+            [titleLabel.trailingAnchor constraintEqualToAnchor:buttonContainer.trailingAnchor constant:-8],
+            [titleLabel.bottomAnchor constraintEqualToAnchor:buttonContainer.bottomAnchor constant:-12],
+        ]];
+        
+        // 添加点击手势
+        UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(quickActionTapped:)];
+        tapGesture.cancelsTouchesInView = YES;
+        buttonContainer.userInteractionEnabled = YES;
+        [buttonContainer addGestureRecognizer:tapGesture];
+        
+        // 保存URL到关联对象
+        objc_setAssociatedObject(buttonContainer, "actionURL", url, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        
+        [actionButtons addObject:buttonContainer];
+    }
+    
+    // 布局按钮
+    if (actionButtons.count > 0) {
+        UIView *firstButton = actionButtons[0];
+        [NSLayoutConstraint activateConstraints:@[
+            [firstButton.leadingAnchor constraintEqualToAnchor:contentView.leadingAnchor],
+            [firstButton.topAnchor constraintEqualToAnchor:contentView.topAnchor],
+            [firstButton.bottomAnchor constraintEqualToAnchor:contentView.bottomAnchor],
+            [firstButton.widthAnchor constraintEqualToConstant:80],
+        ]];
+        
+        for (NSInteger i = 1; i < actionButtons.count; i++) {
+            UIView *prevButton = actionButtons[i - 1];
+            UIView *currentButton = actionButtons[i];
+            
+            [NSLayoutConstraint activateConstraints:@[
+                [currentButton.leadingAnchor constraintEqualToAnchor:prevButton.trailingAnchor constant:12],
+                [currentButton.topAnchor constraintEqualToAnchor:contentView.topAnchor],
+                [currentButton.bottomAnchor constraintEqualToAnchor:contentView.bottomAnchor],
+                [currentButton.widthAnchor constraintEqualToConstant:80],
+            ]];
+        }
+        
+        UIView *lastButton = actionButtons.lastObject;
+        [NSLayoutConstraint activateConstraints:@[
+            [lastButton.trailingAnchor constraintEqualToAnchor:contentView.trailingAnchor],
+        ]];
+    }
+    
+    // 布局滚动视图和内容视图
+    [NSLayoutConstraint activateConstraints:@[
+        [scrollView.topAnchor constraintEqualToAnchor:containerView.topAnchor],
+        [scrollView.leadingAnchor constraintEqualToAnchor:containerView.leadingAnchor],
+        [scrollView.trailingAnchor constraintEqualToAnchor:containerView.trailingAnchor],
+        [scrollView.bottomAnchor constraintEqualToAnchor:containerView.bottomAnchor],
+        
+        [contentView.topAnchor constraintEqualToAnchor:scrollView.topAnchor],
+        [contentView.leadingAnchor constraintEqualToAnchor:scrollView.leadingAnchor],
+        [contentView.trailingAnchor constraintEqualToAnchor:scrollView.trailingAnchor],
+        [contentView.bottomAnchor constraintEqualToAnchor:scrollView.bottomAnchor],
+        [contentView.heightAnchor constraintEqualToAnchor:scrollView.heightAnchor],
+    ]];
+    
+    return containerView;
+}
+
+- (void)quickActionTapped:(UITapGestureRecognizer *)gesture {
+    UIView *buttonView = gesture.view;
+    NSString *url = objc_getAssociatedObject(buttonView, "actionURL");
+    
+    if (url && url.length > 0) {
+        NSLog(@"点击快捷功能，URL: %@", url);
+        // URL格式: thingSmart://miniApp?url=godzilla%3A%2F%2F...
+        // 需要提取url参数的值并解码
+        NSURLComponents *components = [NSURLComponents componentsWithString:url];
+        if (components) {
+            for (NSURLQueryItem *item in components.queryItems) {
+                if ([item.name isEqualToString:@"url"]) {
+                    NSString *miniAppUrl = item.value;
+                    if (miniAppUrl) {
+                        NSLog(@"打开小程序，URL: %@", miniAppUrl);
+                        [[ThingMiniAppClient coreClient] openMiniAppByUrl:miniAppUrl];
+                        return;
+                    }
+                }
+            }
+        }
+        // 如果解析失败，尝试直接使用URL
+        NSLog(@"无法解析URL参数，尝试直接打开: %@", url);
+        [[ThingMiniAppClient coreClient] openMiniAppByUrl:url];
+    }
 }
 
 - (void)aiNoteButtonTapped:(id)sender {
@@ -369,24 +655,17 @@
 
 
 - (void)loadHomeList {
-    [[HomeService sharedInstance] getHomeListWithSuccess:^(id result) {
-        NSArray<ThingSmartHomeModel *> *homeList = (NSArray<ThingSmartHomeModel *> *)result;
-        
+    ThingSmartHomeManager *homeManager = [ThingSmartHomeManager new];
+    [homeManager getHomeListWithSuccess:^(NSArray<ThingSmartHomeModel *> *homes) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (homeList.count == 0) {
+            if (homes.count == 0) {
                 // 没有家庭，创建默认家庭
                 NSLog(@"没有家庭，开始创建默认家庭");
                 NSString *defaultName = @"我的家庭";
                 NSString *defaultCity = @"杭州";
                 
-                [[HomeService sharedInstance] addHomeWithName:defaultName
-                                                      geoName:defaultCity
-                                                        rooms:@[@""]
-                                                     latitude:39.9042
-                                                    longitude:116.4074
-                                                      success:^(id result) {
+                [homeManager addHomeWithName:defaultName geoName:defaultCity rooms:@[@""] latitude:39.9042 longitude:116.4074 success:^(long long homeId) {
                     dispatch_async(dispatch_get_main_queue(), ^{
-                        long long homeId = [result longLongValue];
                         NSLog(@"创建家庭成功，homeId: %lld", homeId);
                         
                         // 获取创建的家庭信息并设置为当前家庭
@@ -395,8 +674,6 @@
                         [home getHomeDataWithSuccess:^(ThingSmartHomeModel * _Nonnull homeModel) {
                             NSLog(@"获取家庭详情成功，homeId: %lld", homeModel.homeId);
                             self.currentHome = homeModel;
-                            [HomeManager setCurrentHome:homeModel];
-                            [HomeManager cacheHomeDetail:homeModel];
                             
                             // 初始化当前家庭（注册协议并设置delegate）
                             [self initCurrentHome];
@@ -415,19 +692,16 @@
                 }];
             } else {
                 // 有家庭，使用第一个家庭
-                ThingSmartHomeModel *homeModel = homeList.firstObject;
+                ThingSmartHomeModel *homeModel = homes.firstObject;
                 NSLog(@"使用家庭: %@, ID: %lld", homeModel.name, homeModel.homeId);
                 
                 self.currentHome = homeModel;
-                [HomeManager setCurrentHome:homeModel];
                 
                 // 获取家庭详细信息并缓存
                 self.home = [ThingSmartHome homeWithHomeId:homeModel.homeId];
                 [self.home getHomeDataWithSuccess:^(ThingSmartHomeModel * _Nonnull homeDetail) {
                     NSLog(@"获取家庭详情成功，homeId: %lld", homeDetail.homeId);
                     self.currentHome = homeDetail;
-                    [HomeManager setCurrentHome:homeDetail];
-                    [HomeManager cacheHomeDetail:homeDetail];
                     
                     // 初始化当前家庭（注册协议并设置delegate）
                     [self initCurrentHome];
@@ -457,7 +731,7 @@
     NSLog(@"点击 添加设备 按钮");
     
     // 检查是否有当前家庭
-    ThingSmartHomeModel *currentHome = self.currentHome ?: [HomeManager getCurrentHome];
+    ThingSmartHomeModel *currentHome = self.currentHome;
     if (!currentHome) {
         [UIHelper showAlertInViewController:self title:@"提示" message:@"请稍候，正在加载家庭信息"];
         return;

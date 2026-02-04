@@ -6,9 +6,15 @@
 //
 
 #import "ActivatorService.h"
-#import "HomeManager.h"
 #import <ThingSmartDeviceKit/ThingSmartDeviceKit.h>
 #import <ThingSmartBizCore/ThingSmartBizCore.h>
+#import <ThingModuleServices/ThingActivatorProtocol.h>
+
+/*
+ MARK: AIVoice 配网服务
+ 配网相关接口示例，配网快速接入，支持多种配网方式方式，详情请参考：
+ https://developer.tuya.com/cn/docs/app-development/activator?id=Ka5cgmlzpfig4
+*/
 
 @interface ActivatorService ()
 
@@ -27,16 +33,16 @@
     return instance;
 }
 
-#pragma mark - ThingSmartHomeDataProtocol
+//#pragma mark - ThingFamilyProtocol
+//- (long long)currentFamilyId {
+//    ThingSmartHome *home = [[ThingSmartHomeManager new] homes];
+//    if (!home) {
+//        NSLog(@"ActivatorService: 当前家庭不存在，无法进行配网");
+//        return 0;
+//    }
+//    return home.homeId;
+//}
 
-- (ThingSmartHome *)getCurrentHome {
-    ThingSmartHome *home = [HomeManager getCurrentHomeInstance];
-    if (!home) {
-        NSLog(@"ActivatorService: 当前家庭不存在，无法进行配网");
-        return nil;
-    }
-    return home;
-}
 
 #pragma mark - Public Methods
 

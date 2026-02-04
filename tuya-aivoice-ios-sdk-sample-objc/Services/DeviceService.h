@@ -25,13 +25,6 @@ typedef void(^DeviceFailureBlock)(NSError *error);
 - (void)getDeviceListWithSuccess:(DeviceSuccessBlock)success
                           failure:(DeviceFailureBlock)failure;
 
-/**
- * 刷新设备列表（确保家庭详细信息已加载）
- * @param success 成功回调，返回设备列表
- * @param failure 失败回调
- */
-- (void)refreshDeviceListWithSuccess:(DeviceSuccessBlock)success
-                             failure:(DeviceFailureBlock)failure;
 
 @end
 

@@ -7,10 +7,8 @@
 
 #import "LoginViewController.h"
 #import "RegisterViewController.h"
-#import "MainViewController.h"
+#import "MainTabBarController.h"
 #import "AuthService.h"
-#import "HomeService.h"
-#import "HomeManager.h"
 #import "UIHelper.h"
 #import <ThingSmartBaseKit/ThingSmartBaseKit.h>
 #import <ThingSmartDeviceKit/ThingSmartDeviceKit.h>
@@ -167,13 +165,6 @@
         dispatch_async(dispatch_get_main_queue(), ^{
             self.loginButton.enabled = YES;
             [self.loginButton setTitle:@"登录" forState:UIControlStateNormal];
-            
-            // 等待缓存加载完成，然后设置当前家庭并查询详细信息
-            [[HomeService sharedInstance] waitLoadCacheComplete:^(BOOL complete) {
-                NSLog(@"缓存加载完成: %@", complete ? @"是" : @"否");
-            }];
-            
-            [self setupCurrentHomeAndLoadDetail];
         });
     } failure:^(NSError *error) {
         // 登录失败
@@ -194,85 +185,6 @@
     [self presentViewController:navController animated:YES completion:nil];
 }
 
-- (void)setupCurrentHomeAndLoadDetail {
-    NSLog(@"开始设置当前家庭并加载详细信息");
-    [[HomeService sharedInstance] getHomeListWithSuccess:^(id result) {
-        NSArray<ThingSmartHomeModel *> *homes = (NSArray<ThingSmartHomeModel *> *)result;
-        NSLog(@"获取到家庭列表，数量: %lu", (unsigned long)homes.count);
-        
-        if (homes.count == 0) {
-            // 没有家庭，创建默认家庭
-            NSLog(@"没有家庭，开始创建默认家庭");
-            NSString *defaultName = @"我的家庭";
-            NSString *defaultCity = @"北京";
-            
-            [[HomeService sharedInstance] addHomeWithName:defaultName
-                                                   geoName:defaultCity
-                                                     rooms:@[@""]
-                                                  latitude:39.9042
-                                                 longitude:116.4074
-                                                   success:^(id result) {
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    long long homeId = [result longLongValue];
-                    NSLog(@"创建家庭成功，homeId: %lld", homeId);
-                    ThingSmartHome *home = [ThingSmartHome homeWithHomeId:homeId];
-                    if (home && home.homeModel) {
-                        [HomeManager setCurrentHome:home.homeModel];
-                    }
-                    
-                    // 直接跳转，不等待查询详细信息
-                    [self navigateToMainPage];
-                    
-                    // 后台异步查询家庭详细信息并缓存
-                    [self loadHomeDetailAndCache:homeId];
-                });
-            } failure:^(NSError *error) {
-                NSLog(@"创建默认家庭失败: %@", error.localizedDescription);
-                // 即使创建失败也跳转
-                dispatch_async(dispatch_get_main_queue(), ^{
-                    [self navigateToMainPage];
-                });
-            }];
-        } else {
-            // 有家庭，设置第一个为当前家庭
-            ThingSmartHomeModel *firstHome = homes.firstObject;
-            NSLog(@"设置当前家庭: %@, ID: %lld", firstHome.name, firstHome.homeId);
-            [HomeManager setCurrentHome:firstHome];
-            
-            // 直接跳转，不等待查询详细信息
-            [self navigateToMainPage];
-            
-            // 后台异步查询家庭详细信息并缓存
-            [self loadHomeDetailAndCache:firstHome.homeId];
-        }
-    } failure:^(NSError *error) {
-        NSLog(@"获取家庭列表失败: %@", error.localizedDescription);
-        // 即使获取失败也跳转
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [self navigateToMainPage];
-        });
-    }];
-}
-
-- (void)loadHomeDetailAndCache:(long long)homeId {
-    NSLog(@"后台异步查询家庭详细信息，homeId: %lld", homeId);
-    
-    // 后台异步查询家庭详细信息并缓存（不阻塞主线程）
-    [[HomeService sharedInstance] getHomeDataWithHomeId:homeId
-                                                success:^(id result) {
-        ThingSmartHomeModel *homeDetail = (ThingSmartHomeModel *)result;
-        NSLog(@"查询家庭详细信息成功，homeDetail: %@", homeDetail ? @"存在" : @"nil");
-        if (homeDetail) {
-            // 缓存家庭详细信息
-            [HomeManager cacheHomeDetail:homeDetail];
-            NSLog(@"家庭详细信息已缓存 - 名称: %@, ID: %lld", homeDetail.name, homeDetail.homeId);
-        }
-    } failure:^(NSError *error) {
-        NSLog(@"查询家庭详细信息失败: %@", error.localizedDescription);
-        // 查询失败不影响使用，只记录日志
-    }];
-}
-
 - (void)navigateToMainPage {
     NSLog(@"navigateToMainPage 被调用，当前线程: %@", [NSThread isMainThread] ? @"主线程" : @"后台线程");
     
@@ -284,9 +196,8 @@
         return;
     }
     
-    // 跳转到首页 - 使用 window.rootViewController 替换，销毁登录页面
-    MainViewController *mainVC = [[MainViewController alloc] init];
-    UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:mainVC];
+    // 跳转到首页（带底部 Tab：首页 / 我的）
+    MainTabBarController *tabBar = [[MainTabBarController alloc] init];
     
     // 获取 window - 优先使用当前视图的 window
     UIWindow *window = self.view.window;
@@ -325,15 +236,14 @@
                           duration:0.3
                            options:UIViewAnimationOptionTransitionCrossDissolve
                         animations:^{
-            window.rootViewController = navController;
+            window.rootViewController = tabBar;
         } completion:^(BOOL finished) {
             NSLog(@"切换 rootViewController 完成: %@", finished ? @"成功" : @"失败");
         }];
     } else {
         NSLog(@"未找到 window，使用 present 方式");
-        // 如果无法获取 window，使用 present 方式（降级方案）
-        navController.modalPresentationStyle = UIModalPresentationFullScreen;
-        [self presentViewController:navController animated:YES completion:^{
+        tabBar.modalPresentationStyle = UIModalPresentationFullScreen;
+        [self presentViewController:tabBar animated:YES completion:^{
             NSLog(@"present 完成");
             // present 后，将登录页面从父视图控制器中移除
             [self dismissViewControllerAnimated:NO completion:nil];

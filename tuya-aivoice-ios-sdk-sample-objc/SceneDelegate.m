@@ -7,7 +7,7 @@
 
 #import "SceneDelegate.h"
 #import "LoginViewController.h"
-#import "MainViewController.h"
+#import "MainTabBarController.h"
 #import <ThingSmartBaseKit/ThingSmartBaseKit.h>
 
 @interface SceneDelegate ()
@@ -26,9 +26,8 @@
     self.window = [[UIWindow alloc] initWithWindowScene:windowScene];
     
     if ([ThingSmartUser sharedInstance].isLogin) {
-        MainViewController *mainVC = [[MainViewController alloc] init];
-        UINavigationController *Nav = [[UINavigationController alloc] initWithRootViewController:mainVC];
-        self.window.rootViewController = Nav;
+        MainTabBarController *tabBar = [[MainTabBarController alloc] init];
+        self.window.rootViewController = tabBar;
     } else {
         LoginViewController *loginVC = [[LoginViewController alloc] init];
         self.window.rootViewController = loginVC;
