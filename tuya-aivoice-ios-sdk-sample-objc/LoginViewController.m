@@ -58,8 +58,7 @@
     self.phoneNumberTextField.keyboardType = UIKeyboardTypePhonePad;
     self.phoneNumberTextField.autocapitalizationType = UITextAutocapitalizationTypeNone;
     self.phoneNumberTextField.autocorrectionType = UITextAutocorrectionTypeNo;
-    // 调试阶段设置默认值
-    self.phoneNumberTextField.text = @"15005961707";
+    self.phoneNumberTextField.text = @"";
     self.phoneNumberTextField.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.phoneNumberTextField];
     
@@ -70,8 +69,7 @@
     self.passwordTextField.secureTextEntry = YES;
     self.passwordTextField.autocapitalizationType = UITextAutocapitalizationTypeNone;
     self.passwordTextField.autocorrectionType = UITextAutocorrectionTypeNo;
-    // 调试阶段设置默认值
-    self.passwordTextField.text = @"Tuya1234";
+    self.passwordTextField.text = @"";
     self.passwordTextField.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:self.passwordTextField];
     
@@ -165,6 +163,8 @@
         dispatch_async(dispatch_get_main_queue(), ^{
             self.loginButton.enabled = YES;
             [self.loginButton setTitle:@"登录" forState:UIControlStateNormal];
+            // 跳转到主页面
+            [self navigateToMainPage];
         });
     } failure:^(NSError *error) {
         // 登录失败
