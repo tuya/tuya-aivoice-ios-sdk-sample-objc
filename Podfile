@@ -1,10 +1,6 @@
 source 'https://github.com/CocoaPods/Specs.git'
-
 # tuya公有源
-#source 'https://github.com/tuya/tuya-pod-specs.git'
-
-# 耳机私有源
-source 'https://github.com/tuya/AIBudsSpec.git'
+source 'https://github.com/tuya/tuya-pod-specs.git'
 
 use_modular_headers!
 platform :ios, '12.0'
@@ -19,19 +15,19 @@ target 'tuya-aivoice-ios-sdk-sample-objc' do
   # AI 音频UI业务包
   pod 'ThingSmartAIVoiceBizBundle', '~> 6.11.0'
 
-# Device pairing，
+  # 设备配网UI业务包
   pod 'ThingSmartActivatorBizBundle', '~> 6.11.0'
-  # Device panel (Miniapp)
+  # 小程序UI业务包
   pod "ThingSmartMiniAppBizBundle", '~> 6.11.0'
   pod 'ThingSmartBaseKitBizBundle', '~> 6.11.0'
   pod 'ThingSmartBizKitBizBundle', '~> 6.11.0'
-  # Device details
+  # 设备详情UI业务包
   pod 'ThingSmartDeviceDetailBizBundle', '~> 6.11.0'
-  # Family
+  # 家庭UI业务包
   pod 'ThingSmartFamilyBizBundle', '~> 6.11.0'
    
   # Optional
-  # Device OTA updates
+  # 设备OTA升级UI业务包
   # pod 'ThingSmartOTABizBundle', '~> 6.11.0'
 
 end

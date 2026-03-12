@@ -698,17 +698,11 @@
 - (void)deviceListView:(UIView *)view didSelectDevice:(ThingSmartDeviceModel *)device {
     NSLog(@"点击设备: %@", device.name);
     
-    // 跳转到设备详情页
-    id<ThingDeviceDetailProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingDeviceDetailProtocol)];
-    if (impl && device.devId) {
-        ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
-        if (smartDevice && smartDevice.deviceModel) {
-            [impl gotoDeviceDetailDetailViewControllerWithDevice:smartDevice.deviceModel group:nil];
-        } else {
-            NSLog(@"无法创建设备对象，deviceId: %@", device.devId);
-        }
-    } else {
-        NSLog(@"无法获取设备详情协议实现或设备ID为空");
+    // 跳转设备面板页
+    ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
+    id<ThingPanelProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingPanelProtocol)];
+    if (impl) {
+        [impl gotoPanelViewControllerWithDevice:smartDevice.deviceModel group:nil initialProps:nil contextProps:nil completion:nil];
     }
 }
 
