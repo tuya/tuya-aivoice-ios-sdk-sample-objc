@@ -15,12 +15,18 @@ target 'tuya-aivoice-ios-sdk-sample-objc' do
   # AI 音频UI业务包
   pod 'ThingSmartAIVoiceBizBundle', '~> 6.11.0'
 
-  # 设备配网UI业务包
-  pod 'ThingSmartActivatorBizBundle', '~> 6.11.0'
+
   # 小程序UI业务包
   pod "ThingSmartMiniAppBizBundle", '~> 6.11.0'
   pod 'ThingSmartBaseKitBizBundle', '~> 6.11.0'
   pod 'ThingSmartBizKitBizBundle', '~> 6.11.0'
+  
+  # 设备配网UI业务包-无配网需求可以不加
+  pod 'ThingSmartActivatorBizBundle', '~> 6.11.0'
+  
+  # 设备面板UI业务包-无设备控制的需求可以不加
+  pod 'ThingSmartPanelBizBundle','~> 6.11.0'
+  
   # 设备详情UI业务包
   pod 'ThingSmartDeviceDetailBizBundle', '~> 6.11.0'
   # 家庭UI业务包
