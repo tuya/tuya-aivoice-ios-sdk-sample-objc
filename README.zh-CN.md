@@ -57,6 +57,7 @@ AI 音频业务包 Demo 地址: [tuya-aivoice-ios-sdk-sample-objc](https://githu
 | needBle | 是否需要支持蓝牙设备配网 | Boolean | 否 | true |
 | themeColor | UI 主题色设置 | String | 否 | #FF5A28 |
 
+![Demo-Screenshot](https://github.com/tuya/tuya-aivoice-ios-sdk-sample-objc/blob/master/Screenshot/Demo-Screenshot.jpg)
 
 下面是对这些注意点的简要归纳与说明，便于你快速建立整体认知；具体实现细节和链接以代码内注释为准。
 
@@ -80,7 +81,7 @@ AI 音频业务包 Demo 地址: [tuya-aivoice-ios-sdk-sample-objc](https://githu
 | `ThingSmartHome` | 单个家庭管理（需用 `homeId` 初始化） |
 | `ThingSmartHomeDelegate` | 家庭下信息变更（设备增删、房间、dps 等） |
 
-获取家庭下设备/群组前，必须先初始化 `ThingSmartHome` 并调用 **查询家庭详情**，`homeModel`、`roomList`、`deviceList`、`groupList` 等才会有数据。
+获取家庭下设备/群组前，必须先初始化 `ThingSmartHome` 并调用 **查询家庭详情**，`homeModel`、`roomList`、`deviceList`、`groupList` 等才会有数据, 最后再设置一下当前的家庭，在当前类中实现需要实现 `<ThingFamilyProtocol>`。
 
 ```objc
 // 1. 查询家庭列表（仅简单信息）
@@ -92,7 +93,15 @@ AI 音频业务包 Demo 地址: [tuya-aivoice-ios-sdk-sample-objc](https://githu
 self.home = [ThingSmartHome homeWithHomeId:homeId];
 [self.home getHomeDataWithSuccess:^(ThingSmartHomeModel *homeModel) {
     // 此后 self.home.deviceList / groupList / roomList 等才有数据
+
+    // 3. 设置一下当前家庭
+    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingFamilyProtocol) withInstance:self];
+    id<ThingFamilyProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingFamilyProtocol)];
+    if ([impl respondsToSelector:@selector(updateCurrentFamilyId:)]) {
+        [impl updateCurrentFamilyId:homeId];
+    }
 } failure:^(NSError *error) { }];
+
 ```
 
 - 文档：[家庭管理](https://developer.tuya.com/cn/docs/app-development/home?id=Ka5d52ey6e58h)、[家庭信息管理](https://developer.tuya.com/cn/docs/app-development/iOS_family?id=Kaixeor409hck)
@@ -113,6 +122,13 @@ NSArray *deviceList = [self.home.deviceList copy];
 // 按 devId 初始化设备控制类（当前用户须拥有该设备，且已同步家庭详情）
 ThingSmartDevice *device = [ThingSmartDevice deviceWithDeviceId:devId];
 device.delegate = self;  // 监听 dps 变更、设备信息更新、移除等
+
+// 跳转设备面板页,这样就可以跳转到小程序面板了
+ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
+id<ThingPanelProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingPanelProtocol)];
+if (impl) {
+    [impl gotoPanelViewControllerWithDevice:smartDevice.deviceModel group:nil initialProps:nil contextProps:nil completion:nil];
+}
 ```
 
 - 文档：[设备管理](https://developer.tuya.com/cn/docs/app-development/device?id=Ka5cgmmjr46cp)

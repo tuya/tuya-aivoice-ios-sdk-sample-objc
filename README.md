@@ -65,6 +65,8 @@ Demo: [tuya-aivoice-ios-sdk-sample-objc](https://github.com/tuya/tuya-aivoice-io
 | needBle | Whether to support BLE device provisioning | Boolean | No | true |
 | themeColor | UI theme color | String | No | #FF5A28 |
 
+![Demo Screenshot](https://github.com/tuya/tuya-aivoice-ios-sdk-sample-objc/blob/master/Screenshot/Demo-Screenshot.jpg)
+
 The sections below summarize these points; refer to in-code comments for implementation details and links.
 
 ---
@@ -88,7 +90,7 @@ Main capabilities: list homes, get devices/groups under a home, add/update/remov
 | `ThingSmartHome`         | Single-home management (initialized with `homeId`) |
 | `ThingSmartHomeDelegate` | Callbacks for home changes (devices, rooms, dps, etc.) |
 
-You must initialize `ThingSmartHome` and call **get home detail** before `homeModel`, `roomList`, `deviceList`, `groupList`, etc. are populated.
+You must initialize `ThingSmartHome` and call **get home detail** before `homeModel`, `roomList`, `deviceList`, `groupList`, etc. are populated. Then **set the current home**; the class that owns the home must conform to `<ThingFamilyProtocol>`.
 
 ```objc
 // 1. Get home list (basic info only)
@@ -100,6 +102,13 @@ You must initialize `ThingSmartHome` and call **get home detail** before `homeMo
 self.home = [ThingSmartHome homeWithHomeId:homeId];
 [self.home getHomeDataWithSuccess:^(ThingSmartHomeModel *homeModel) {
     // Now self.home.deviceList / groupList / roomList etc. have data
+
+    // 3. Set the current home
+    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingFamilyProtocol) withInstance:self];
+    id<ThingFamilyProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingFamilyProtocol)];
+    if ([impl respondsToSelector:@selector(updateCurrentFamilyId:)]) {
+        [impl updateCurrentFamilyId:homeId];
+    }
 } failure:^(NSError *error) { }];
 ```
 
@@ -121,6 +130,13 @@ NSArray *deviceList = [self.home.deviceList copy];
 // Init device by devId (user must own device and home detail must be synced)
 ThingSmartDevice *device = [ThingSmartDevice deviceWithDeviceId:devId];
 device.delegate = self;  // Listen for dps updates, device info, removal, etc.
+
+// Open device panel (mini program panel)
+ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
+id<ThingPanelProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingPanelProtocol)];
+if (impl) {
+    [impl gotoPanelViewControllerWithDevice:smartDevice.deviceModel group:nil initialProps:nil contextProps:nil completion:nil];
+}
 ```
 
 - Docs: [Device Management](https://developer.tuya.com/cn/docs/app-development/device?id=Ka5cgmmjr46cp)
