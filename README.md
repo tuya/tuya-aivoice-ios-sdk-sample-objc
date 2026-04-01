@@ -2,8 +2,6 @@
 
 **中文说明请参阅 [README.zh-CN.md](README.zh-CN.md)。**
 
----
-
 ## Project Overview
 
 The AI Audio UI Biz Bundle enables ordinary Bluetooth headsets, glasses, speakers, and other audio products to be upgraded into AI products with AI note-taking and translation. It uses a professional recording algorithm with advanced language models for real-time transcription and translation in 100+ languages worldwide.
@@ -13,6 +11,13 @@ Before integrating this biz bundle, complete [Preparation](https://developer.tuy
 Demo: [tuya-aivoice-ios-sdk-sample-objc](https://github.com/tuya/tuya-aivoice-ios-sdk-sample-objc).
 
 ---
+
+## For AI assistants: Integration skill
+
+When you use **Cursor**, **Claude Code**, or similar agents to integrate the Tuya AI Audio UI biz bundle on iOS, load the companion skill **[`aivoice-integration/SKILL.md`](aivoice-integration/SKILL.md)** (skill id: `tuya-aivoice-ios-integration`). It includes a decision tree, CocoaPods and config steps, SDK initialization, login, home and device flows, provisioning, and mini program routing aligned with this repo.
+
+- **Cursor**: Add the skill under your user or project skills directory when working in this repo, or attach [`aivoice-integration/SKILL.md`](aivoice-integration/SKILL.md) in integration-related chats.
+- **Tip**: Have the agent read that file first so guidance stays consistent with `MARK: AIVoice` comments and the sections below.
 
 ## Developer Notes: MARK: AIVoice
 

@@ -1,4 +1,3 @@
-
 ## 项目介绍
 
 AI 音频 UI 业务包是针对普通蓝牙耳机、眼镜、音箱等音频类产品直接升级为 AI 产品，即可使用 AI 记录和翻译功能，专业录音算法配合先进的语言模型，覆盖全球 100+ 种语言的实时精准转写和实时翻译。
@@ -6,6 +5,17 @@ AI 音频 UI 业务包是针对普通蓝牙耳机、眼镜、音箱等音频类�
 在接入该业务包之前请先完成 [准备工作](https://developer.tuya.com/cn/docs/app-development/preparation?id=Ka8j28bikfqkf) 和 [框架接入](https://developer.tuya.com/cn/docs/app-development/framework?id=Ka8j2895qdvtj)。
 
 AI 音频业务包 Demo 地址: [tuya-aivoice-ios-sdk-sample-objc](https://github.com/tuya/tuya-aivoice-ios-sdk-sample-objc)。
+
+
+## AI接入
+在通过 **Cursor**、**Claude Code** 等 AI 助手接入涂鸦 AI 音频 iOS 业务包时，请使用本仓库内的配套 Skill：[**`aivoice-integration/SKILL.md`**](aivoice-integration/SKILL.md)（Skill 标识：`tuya-aivoice-ios-integration`）。其中包含快速决策树、依赖与配置文件分步说明、SDK 初始化、登录、家庭与设备、配网及小程序/面板路由等，与本 README 及 Demo 工程一致。
+
+**如何使用**
+
+- **Cursor**：将 Skill 配置到用户级或项目级 skills 后在本仓库中提问，或在集成相关对话中附带/打开 [`aivoice-integration/SKILL.md`](aivoice-integration/SKILL.md)。
+- **建议**：深度接入前请先让助手阅读该文件，并与源码中 `MARK: AIVoice` 注释对照。
+
+**English:** [README.md](README.md)
 
 ## 开发者必读：MARK: AIVoice 注释
 
