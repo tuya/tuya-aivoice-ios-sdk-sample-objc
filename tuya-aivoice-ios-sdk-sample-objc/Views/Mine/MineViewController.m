@@ -5,7 +5,10 @@
 
 #import "MineViewController.h"
 #import "LoginViewController.h"
+#import "DeviceManagementViewController.h"
 #import <ThingSmartBaseKit/ThingSmartUser.h>
+#import <ThingModuleManager/ThingModuleManager.h>
+#import <ThingModuleServices/ThingFeedBackProtocol.h>
 
 @interface MineViewController ()
 
@@ -15,6 +18,7 @@
 @property (nonatomic, strong) UILabel *accountLabel;
 @property (nonatomic, strong) UILabel *countryLabel;
 @property (nonatomic, strong) UIButton *logoutButton;
+@property (nonatomic, strong) UIView *menuCard;
 
 @end
 
@@ -22,8 +26,8 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    self.title = @"我的";
-    self.view.backgroundColor = [UIColor systemGroupedBackgroundColor];
+    [self configureFamilyNavigationWithTitle:@"我的" leftTitle:@"" leftAction:nil rightTitle:nil rightAction:nil];
+    self.view.backgroundColor = [self familyBackgroundColor];
     [self setupUI];
     [self refreshUserInfo];
 }
@@ -37,8 +41,8 @@
     // 个人信息卡片
     _profileCard = [[UIView alloc] init];
     _profileCard.translatesAutoresizingMaskIntoConstraints = NO;
-    _profileCard.backgroundColor = [UIColor secondarySystemGroupedBackgroundColor];
-    _profileCard.layer.cornerRadius = 16;
+    _profileCard.backgroundColor = [self familyCardColor];
+    _profileCard.layer.cornerRadius = 20;
     [self.view addSubview:_profileCard];
 
     _avatarImageView = [[UIImageView alloc] init];
@@ -76,18 +80,30 @@
     _countryLabel.text = @"";
     [_profileCard addSubview:_countryLabel];
 
-    _logoutButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.menuCard = [[UIView alloc] init];
+    self.menuCard.translatesAutoresizingMaskIntoConstraints = NO;
+    self.menuCard.backgroundColor = [self familyCardColor];
+    self.menuCard.layer.cornerRadius = 20;
+    [self.view addSubview:self.menuCard];
+    UIButton *deviceButton = [self menuButtonWithTitle:@"设备管理" detail:@"名称、状态与解绑" action:@selector(openDeviceManagement)];
+    UIButton *nicknameButton = [self menuButtonWithTitle:@"修改昵称" detail:@"展示在家庭成员列表中" action:@selector(editNickname)];
+    UIButton *logButton = [self menuButtonWithTitle:@"上传诊断日志" detail:@"通过涂鸦反馈服务提交" action:@selector(uploadDiagnosticLog)];
+    UIStackView *menuStack = [[UIStackView alloc] initWithArrangedSubviews:@[deviceButton, nicknameButton, logButton]];
+    menuStack.axis = UILayoutConstraintAxisVertical; menuStack.spacing = 1; menuStack.backgroundColor = [self familyHairlineColor]; menuStack.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.menuCard addSubview:menuStack];
+
+    _logoutButton = [UIButton buttonWithType:UIButtonTypeCustom];
     _logoutButton.translatesAutoresizingMaskIntoConstraints = NO;
     [_logoutButton setTitle:@"退出登录" forState:UIControlStateNormal];
     _logoutButton.titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightMedium];
-    [_logoutButton setTitleColor:[UIColor systemRedColor] forState:UIControlStateNormal];
-    _logoutButton.backgroundColor = [UIColor secondarySystemGroupedBackgroundColor];
-    _logoutButton.layer.cornerRadius = 12;
+    [_logoutButton setTitleColor:[self familyDestructiveColor] forState:UIControlStateNormal];
+    _logoutButton.backgroundColor = [self familyCardColor];
+    _logoutButton.layer.cornerRadius = 20;
     [_logoutButton addTarget:self action:@selector(logoutTapped:) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:_logoutButton];
 
     [NSLayoutConstraint activateConstraints:@[
-        [_profileCard.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:24],
+        [_profileCard.topAnchor constraintEqualToAnchor:self.familyContentGuide.topAnchor constant:16],
         [_profileCard.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [_profileCard.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
         [_profileCard.heightAnchor constraintEqualToConstant:140],
@@ -109,11 +125,52 @@
         [_countryLabel.trailingAnchor constraintEqualToAnchor:_nicknameLabel.trailingAnchor],
         [_countryLabel.topAnchor constraintEqualToAnchor:_accountLabel.bottomAnchor constant:4],
 
+        [self.menuCard.topAnchor constraintEqualToAnchor:self.profileCard.bottomAnchor constant:18],
+        [self.menuCard.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
+        [self.menuCard.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
+        [self.menuCard.heightAnchor constraintEqualToConstant:198],
+        [menuStack.topAnchor constraintEqualToAnchor:self.menuCard.topAnchor],
+        [menuStack.leadingAnchor constraintEqualToAnchor:self.menuCard.leadingAnchor],
+        [menuStack.trailingAnchor constraintEqualToAnchor:self.menuCard.trailingAnchor],
+        [menuStack.bottomAnchor constraintEqualToAnchor:self.menuCard.bottomAnchor],
+        [_logoutButton.topAnchor constraintEqualToAnchor:self.menuCard.bottomAnchor constant:18],
         [_logoutButton.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [_logoutButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
         [_logoutButton.heightAnchor constraintEqualToConstant:52],
-        [_logoutButton.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-32],
+        [_logoutButton.bottomAnchor constraintLessThanOrEqualToAnchor:self.familyContentGuide.bottomAnchor constant:-18],
     ]];
+}
+
+- (UIButton *)menuButtonWithTitle:(NSString *)title detail:(NSString *)detail action:(SEL)action {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+    button.backgroundColor = [self familyCardColor];
+    [button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+    UILabel *titleLabel = [UILabel new]; titleLabel.text = title; titleLabel.font = [UIFont systemFontOfSize:17 weight:UIFontWeightSemibold]; titleLabel.textColor = [self familyPrimaryTextColor]; titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    UILabel *detailLabel = [UILabel new]; detailLabel.text = detail; detailLabel.font = [UIFont systemFontOfSize:13]; detailLabel.textColor = [self familySecondaryTextColor]; detailLabel.translatesAutoresizingMaskIntoConstraints = NO;
+    UILabel *chevron = [UILabel new]; chevron.text = @"›"; chevron.font = [UIFont systemFontOfSize:30]; chevron.textColor = [self familySecondaryTextColor]; chevron.translatesAutoresizingMaskIntoConstraints = NO;
+    [button addSubview:titleLabel]; [button addSubview:detailLabel]; [button addSubview:chevron];
+    [NSLayoutConstraint activateConstraints:@[[button.heightAnchor constraintEqualToConstant:65], [titleLabel.leadingAnchor constraintEqualToAnchor:button.leadingAnchor constant:18], [titleLabel.topAnchor constraintEqualToAnchor:button.topAnchor constant:12], [detailLabel.leadingAnchor constraintEqualToAnchor:titleLabel.leadingAnchor], [detailLabel.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:3], [chevron.trailingAnchor constraintEqualToAnchor:button.trailingAnchor constant:-18], [chevron.centerYAnchor constraintEqualToAnchor:button.centerYAnchor]]];
+    return button;
+}
+
+- (void)openDeviceManagement { [self.navigationController pushViewController:[DeviceManagementViewController new] animated:YES]; }
+
+- (void)editNickname {
+    __weak typeof(self) weakSelf = self;
+    [self showFamilyInputDialogWithTitle:@"修改昵称" message:nil placeholders:@[@"请输入昵称"] initialValues:@[self.nicknameLabel.text ?: @""] keyboardTypes:nil confirmTitle:@"保存" confirm:^(NSArray<NSString *> *values) {
+        [[ThingSmartUser sharedInstance] updateNickname:values.firstObject success:^{ [weakSelf refreshUserInfo]; } failure:^(NSError *error) { [weakSelf showFamilyMessageWithTitle:@"保存失败" message:error.localizedDescription ?: @""]; }];
+    }];
+}
+
+- (void)uploadDiagnosticLog {
+    [self showFamilyConfirmationWithTitle:@"上传诊断日志" message:@"将进入涂鸦反馈服务，由您确认需要提交的日志和问题说明。" confirmTitle:@"继续" destructive:NO confirm:^{
+        id<ThingFeedBackProtocol> service = [ThingModule serviceOfRequiredProtocol:@protocol(ThingFeedBackProtocol)];
+        if ([service respondsToSelector:@selector(gotFeedBackViewControllerWithHdType:deviceName:hdId:uuid:region:withoutRefresh:)]) {
+            [service gotFeedBackViewControllerWithHdType:8 deviceName:nil hdId:nil uuid:nil region:nil withoutRefresh:YES];
+        } else {
+            [self showFamilyMessageWithTitle:@"日志服务不可用" message:@"当前构建未加载涂鸦反馈模块。"];
+        }
+    }];
 }
 
 - (NSString *)countryNameForCountryCode:(NSString *)countryCode {
@@ -157,14 +214,9 @@
 
 - (void)logoutTapped:(UIButton *)sender {
     __weak typeof(self) weakSelf = self;
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"退出登录"
-                                                                   message:@"确定要退出当前账号吗？"
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"退出" style:UIAlertActionStyleDestructive handler:^(UIAlertAction * _Nonnull action) {
+    [self showFamilyConfirmationWithTitle:@"退出登录" message:@"确定要退出当前账号吗？" confirmTitle:@"退出" destructive:YES confirm:^{
         [weakSelf doLogout];
-    }]];
-    [self presentViewController:alert animated:YES completion:nil];
+    }];
 }
 
 - (void)doLogout {
@@ -204,9 +256,7 @@
 - (void)onLogoutFailure:(NSError *)error {
     dispatch_async(dispatch_get_main_queue(), ^{
         NSString *msg = error.localizedDescription ?: @"退出失败";
-        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"提示" message:msg preferredStyle:UIAlertControllerStyleAlert];
-        [alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil]];
-        [self presentViewController:alert animated:YES completion:nil];
+        [self showFamilyMessageWithTitle:@"提示" message:msg];
     });
 }
 

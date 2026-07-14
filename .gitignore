@@ -4,6 +4,7 @@
 
 ## User settings
 xcuserdata/
+.DS_Store
 
 ## Obj-C/Swift specific
 *.hmap
@@ -44,3 +45,18 @@ fastlane/screenshots/**/*.png
 fastlane/test_output
 
 Build/
+
+# Local integration logs
+log/
+
+# Local learning materials (not part of the sample app)
+/MISSION.md
+/NOTES.md
+/RESOURCES.md
+/assets/
+/learning-records/
+/lessons/
+/reference/
+
+# Local app-specific security SDK
+/ios_core_sdk/

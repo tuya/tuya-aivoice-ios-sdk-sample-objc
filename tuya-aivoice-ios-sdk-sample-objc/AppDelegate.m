@@ -7,9 +7,7 @@
 
 #import "AppDelegate.h"
 #import "AppKey.h"
-#import "ActivatorService.h"
 #import <ThingSmartBizCore/ThingSmartBizCore.h>
-#import <ThingModuleServices/ThingFamilyProtocol.h>
 #import <ThingSmartBaseKit/ThingSmartBaseKit.h>
 #import <ThingSmartMiniAppBizBundle/ThingSmartMiniAppBizBundle.h>
 #import <ThingModuleManager/ThingModuleManager.h>
@@ -65,10 +63,6 @@
     
     // 开启 vConsole 调试开关
     [[ThingMiniAppClient debugClient] vConsoleDebugEnable:YES];
-    
-    // 注册配网协议实现
-    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingFamilyProtocol) withInstance:[ActivatorService sharedInstance]];
-
     
     return [[ThingModuleManager sharedInstance] application:application didFinishLaunchingWithOptions:launchOptions];
 }

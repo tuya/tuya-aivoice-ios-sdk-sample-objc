@@ -7,13 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A10000000000000000000004 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000003 /* XCTest.framework */; };
 		E0A0BDE97100B5B427223E75 /* Pods_tuya_aivoice_ios_sdk_sample_objc.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C5108FDC48B52CAEB1791F27 /* Pods_tuya_aivoice_ios_sdk_sample_objc.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A1000000000000000000000C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2F779D872F2A367B003B1627 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2F779D8E2F2A367B003B1627;
+			remoteInfo = "tuya-aivoice-ios-sdk-sample-objc";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		0222210938E0D06DF544ACDC /* Pods-tuya-aivoice-ios-sdk-sample-objc.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-tuya-aivoice-ios-sdk-sample-objc.debug.xcconfig"; path = "Target Support Files/Pods-tuya-aivoice-ios-sdk-sample-objc/Pods-tuya-aivoice-ios-sdk-sample-objc.debug.xcconfig"; sourceTree = "<group>"; };
 		2F779D8F2F2A367B003B1627 /* tuya-aivoice-ios-sdk-sample-objc.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "tuya-aivoice-ios-sdk-sample-objc.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5785670D15A60378245F8CC9 /* Pods-tuya-aivoice-ios-sdk-sample-objc.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-tuya-aivoice-ios-sdk-sample-objc.release.xcconfig"; path = "Target Support Files/Pods-tuya-aivoice-ios-sdk-sample-objc/Pods-tuya-aivoice-ios-sdk-sample-objc.release.xcconfig"; sourceTree = "<group>"; };
+		A10000000000000000000002 /* tuya-aivoice-ios-sdk-sample-objcTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "tuya-aivoice-ios-sdk-sample-objcTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000003 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		C5108FDC48B52CAEB1791F27 /* Pods_tuya_aivoice_ios_sdk_sample_objc.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_tuya_aivoice_ios_sdk_sample_objc.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -38,6 +51,11 @@
 			path = "tuya-aivoice-ios-sdk-sample-objc";
 			sourceTree = "<group>";
 		};
+		A10000000000000000000001 /* tuya-aivoice-ios-sdk-sample-objcTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "tuya-aivoice-ios-sdk-sample-objcTests";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +64,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				E0A0BDE97100B5B427223E75 /* Pods_tuya_aivoice_ios_sdk_sample_objc.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000004 /* XCTest.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +91,7 @@
 			isa = PBXGroup;
 			children = (
 				2F779D912F2A367B003B1627 /* tuya-aivoice-ios-sdk-sample-objc */,
+				A10000000000000000000001 /* tuya-aivoice-ios-sdk-sample-objcTests */,
 				2F779D902F2A367B003B1627 /* Products */,
 				2F613C34C793EE78F54F0054 /* Pods */,
 				3F75A1934BA2E3D3A5E49988 /* Frameworks */,
@@ -75,6 +102,7 @@
 			isa = PBXGroup;
 			children = (
 				2F779D8F2F2A367B003B1627 /* tuya-aivoice-ios-sdk-sample-objc.app */,
+				A10000000000000000000002 /* tuya-aivoice-ios-sdk-sample-objcTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,6 +110,7 @@
 		3F75A1934BA2E3D3A5E49988 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000003 /* XCTest.framework */,
 				C5108FDC48B52CAEB1791F27 /* Pods_tuya_aivoice_ios_sdk_sample_objc.framework */,
 			);
 			name = Frameworks;
@@ -113,6 +142,27 @@
 			productReference = 2F779D8F2F2A367B003B1627 /* tuya-aivoice-ios-sdk-sample-objc.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A10000000000000000000008 /* tuya-aivoice-ios-sdk-sample-objcTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000000000000000000000B /* Build configuration list for PBXNativeTarget "tuya-aivoice-ios-sdk-sample-objcTests" */;
+			buildPhases = (
+				A10000000000000000000006 /* Sources */,
+				A10000000000000000000005 /* Frameworks */,
+				A10000000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1000000000000000000000D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000001 /* tuya-aivoice-ios-sdk-sample-objcTests */,
+			);
+			name = "tuya-aivoice-ios-sdk-sample-objcTests";
+			productName = "tuya-aivoice-ios-sdk-sample-objcTests";
+			productReference = A10000000000000000000002 /* tuya-aivoice-ios-sdk-sample-objcTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -124,6 +174,10 @@
 				TargetAttributes = {
 					2F779D8E2F2A367B003B1627 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					A10000000000000000000008 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 2F779D8E2F2A367B003B1627;
 					};
 				};
 			};
@@ -142,12 +196,20 @@
 			projectRoot = "";
 			targets = (
 				2F779D8E2F2A367B003B1627 /* tuya-aivoice-ios-sdk-sample-objc */,
+				A10000000000000000000008 /* tuya-aivoice-ios-sdk-sample-objcTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		2F779D8D2F2A367B003B1627 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000007 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -231,7 +293,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A1000000000000000000000D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2F779D8E2F2A367B003B1627 /* tuya-aivoice-ios-sdk-sample-objc */;
+			targetProxy = A1000000000000000000000C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2F779DA82F2A367D003B1627 /* Debug */ = {
@@ -424,6 +501,46 @@
 			};
 			name = Release;
 		};
+		A10000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Services/Pairing";
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.tuya.aivoice.sampleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/tuya-aivoice-ios-sdk-sample-objc.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/tuya-aivoice-ios-sdk-sample-objc";
+			};
+			name = Debug;
+		};
+		A1000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_ENABLE_MODULES = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
+				GENERATE_INFOPLIST_FILE = YES;
+				HEADER_SEARCH_PATHS = "$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Services/Pairing";
+				IPHONEOS_DEPLOYMENT_TARGET = 12.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.tuya.aivoice.sampleTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/tuya-aivoice-ios-sdk-sample-objc.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/tuya-aivoice-ios-sdk-sample-objc";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -441,6 +558,15 @@
 			buildConfigurations = (
 				2F779DA82F2A367D003B1627 /* Debug */,
 				2F779DA92F2A367D003B1627 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000000000000000000000B /* Build configuration list for PBXNativeTarget "tuya-aivoice-ios-sdk-sample-objcTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000009 /* Debug */,
+				A1000000000000000000000A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

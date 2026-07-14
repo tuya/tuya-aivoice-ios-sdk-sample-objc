@@ -38,6 +38,14 @@
 			</array>
 		</dict>
 	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>需要使用蓝牙发现并添加智能设备</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>需要使用蓝牙发现并添加智能设备</string>
 	<key>UIDesignRequiresCompatibility</key>
 	<true/>
 </dict>

@@ -3,11 +3,11 @@
 //  AIVoiceDemo
 //
 
-#import <UIKit/UIKit.h>
+#import "FamilyBaseViewController.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
-@interface MineViewController : UIViewController
+@interface MineViewController : FamilyBaseViewController
 
 @end
 

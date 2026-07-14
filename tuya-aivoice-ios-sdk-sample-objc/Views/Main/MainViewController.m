@@ -9,17 +9,20 @@
 #import "MiniAppRoutes.h"
 #import "UIHelper.h"
 #import "ActivatorService.h"
+#import "CustomBLEPairingViewController.h"
+#import "CustomBLEPairingSession.h"
 #import "DeviceService.h"
 #import "DeviceListView.h"
 #import <ThingSmartDeviceKit/ThingSmartDeviceKit.h>
 #import <ThingModuleServices/ThingModuleServices.h>
+#import <ThingModuleServices/ThingFamilyProtocol.h>
+#import <ThingModuleServices/ThingSmartHomeDataProtocol.h>
 #import <ThingSmartBizCore/ThingSmartBizCore.h>
 #import <ThingSmartMiniAppBizBundle/ThingSmartMiniAppBizBundle.h>
 #import <objc/runtime.h>
 #import <QuartzCore/QuartzCore.h>
-#import <ThingSmartFamilyBizKit/ThingSmartFamilyBizKit.h>
 
-@interface MainViewController () <DeviceListViewDelegate, ThingFamilyProtocol>
+@interface MainViewController () <DeviceListViewDelegate, ThingFamilyProtocol, ThingSmartHomeDataProtocol>
 
 @property (nonatomic, strong) ThingSmartHomeModel *currentHome;
 @property (nonatomic, strong) ThingSmartHome *home;
@@ -76,11 +79,8 @@
     // 恢复导航栏外观（防止从其他页面返回后导航栏变黑）
     [self setupNavigationBarAppearance];
     
-    // 每次页面显示时刷新家庭列表
+    // 每次页面显示时刷新家庭列表；成功后会刷新当前家庭下的设备。
     [self loadHomeList];
-    
-    // 刷新设备列表
-    [self refreshDeviceList];
 }
 
 - (void)setupNavigationBarAppearance {
@@ -120,7 +120,6 @@
 }
 
 - (void)setupUI {
-    // 设置标题
     self.title = @"首页";
     
     // 添加设备按钮 - 放在导航栏右侧
@@ -651,15 +650,40 @@
 
 - (void)addDeviceButtonTapped:(UIBarButtonItem *)sender {
     NSLog(@"点击 添加设备 按钮");
-    
-    // 检查是否有当前家庭
-    ThingSmartHomeModel *currentHome = self.currentHome;
-    if (!currentHome) {
-        [UIHelper showAlertInViewController:self title:@"提示" message:@"请稍候，正在加载家庭信息"];
+
+    if (![ThingSmartUser sharedInstance].isLogin) {
+        [UIHelper showAlertInViewController:self title:@"提示" message:@"请先登录后再添加设备"];
         return;
     }
-    
-    // 设置配网完成回调
+
+    ThingSmartHomeModel *currentHome = self.currentHome;
+    if (!currentHome || currentHome.homeId <= 0) {
+        [UIHelper showAlertInViewController:self title:@"请先选择家庭" message:@"请从首页顶部的家庭名称进入家庭管理，创建或加入一个家庭后再添加设备。"];
+        return;
+    }
+
+    [self initCurrentHome];
+
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"添加设备"
+                                                                    message:@"请选择配网方式"
+                                                             preferredStyle:UIAlertControllerStyleActionSheet];
+    __weak typeof(self) weakSelf = self;
+    [sheet addAction:[UIAlertAction actionWithTitle:@"正常添加" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [weakSelf startNormalDevicePairing];
+    }]];
+    [sheet addAction:[UIAlertAction actionWithTitle:@"自定义添加（BLE 调试）" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [weakSelf startCustomBLEPairing];
+    }]];
+    [sheet addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+
+    UIPopoverPresentationController *popover = sheet.popoverPresentationController;
+    if (popover) {
+        popover.barButtonItem = sender;
+    }
+    [self presentViewController:sheet animated:YES completion:nil];
+}
+
+- (void)startNormalDevicePairing {
     __weak typeof(self) weakSelf = self;
     [[ActivatorService sharedInstance] setActivatorCompletion:^(NSArray * _Nullable deviceList) {
         NSLog(@"配网完成，设备列表: %@", deviceList);
@@ -670,9 +694,17 @@
             }
         });
     }];
-    
-    // 进入配网页面
     [[ActivatorService sharedInstance] gotoDeviceConfig];
+}
+
+- (void)startCustomBLEPairing {
+    long long homeID = self.currentHome.homeId;
+    __weak typeof(self) weakSelf = self;
+    CustomBLEPairingViewController *controller = [[CustomBLEPairingViewController alloc] initWithHomeID:homeID completion:^(CustomBLEPairingDevice *device) {
+        NSLog(@"自定义 BLE 配网成功，devId: %@", device.deviceID);
+        [weakSelf refreshDeviceList];
+    }];
+    [self.navigationController pushViewController:controller animated:YES];
 }
 
 - (void)refreshDeviceList {
@@ -706,83 +738,31 @@
     }
 }
 
-#pragma mark - 家庭相关
-/*
- MARK: AIVoice 加载家庭
- Tuya的SDK 致力于为全屋智能业务场景的移动端开发提供各类模块和组件。因此，家庭是抽象于全屋智能场景的概念，指用户在以家或者场所为单位的范围内所有设备、账号、权限等信息的集合
- 所以必须保证项目起码有一个家庭，注册接口中可以给用户默认创建一个家庭，同时也可以参考以下代码创建并切换家庭
- 详情请参考: https://developer.tuya.com/cn/docs/app-development/home?id=Ka5d52ey6e58h
-*/
+#pragma mark - 当前设备空间
+
 - (void)loadHomeList {
-    ThingSmartHomeManager *homeManager = [ThingSmartHomeManager new];
-    [homeManager getHomeListWithSuccess:^(NSArray<ThingSmartHomeModel *> *homes) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (homes.count == 0) {
-                // 没有家庭，创建默认家庭
-                NSLog(@"没有家庭，开始创建默认家庭");
-                NSString *defaultName = @"我的家庭";
-                NSString *defaultCity = @"杭州";
-                
-                [homeManager addHomeWithName:defaultName geoName:defaultCity rooms:@[@""] latitude:39.9042 longitude:116.4074 success:^(long long homeId) {
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        NSLog(@"创建家庭成功，homeId: %lld", homeId);
-                        
-                        // 获取创建的家庭信息并设置为当前家庭
-                        ThingSmartHome *home = [ThingSmartHome homeWithHomeId:homeId];
-                        self.home = home;
-                        [home getHomeDataWithSuccess:^(ThingSmartHomeModel * _Nonnull homeModel) {
-                            NSLog(@"获取家庭详情成功，homeId: %lld", homeModel.homeId);
-                            self.currentHome = homeModel;
-                            
-                            // 初始化当前家庭（注册协议并设置delegate）
-                            [self initCurrentHome];
-                            
-                            // 刷新设备列表
-                            [self refreshDeviceList];
-                        } failure:^(NSError *error) {
-                            NSLog(@"获取家庭详情失败: %@", error.localizedDescription);
-                        }];
-                    });
-                } failure:^(NSError *error) {
-                    NSLog(@"创建家庭失败: %@", error.localizedDescription);
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [UIHelper showAlertInViewController:self title:@"提示" message:@"创建家庭失败，请稍后重试"];
-                    });
-                }];
-            } else {
-                // 有家庭，使用第一个家庭
-                ThingSmartHomeModel *homeModel = homes.firstObject;
-                NSLog(@"使用家庭: %@, ID: %lld", homeModel.name, homeModel.homeId);
-                
-                self.currentHome = homeModel;
-                
-                // 获取家庭详细信息并缓存
-                self.home = [ThingSmartHome homeWithHomeId:homeModel.homeId];
-                [self.home getHomeDataWithSuccess:^(ThingSmartHomeModel * _Nonnull homeDetail) {
-                    NSLog(@"获取家庭详情成功，homeId: %lld", homeDetail.homeId);
-                    self.currentHome = homeDetail;
-                    
-                    // 初始化当前家庭（注册协议并设置delegate）
-                    [self initCurrentHome];
-                    
-                    // 刷新设备列表
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self refreshDeviceList];
-                    });
-                } failure:^(NSError *error) {
-                    NSLog(@"获取家庭详情失败: %@", error.localizedDescription);
-                    // 即使获取详情失败，也刷新设备列表
-                    dispatch_async(dispatch_get_main_queue(), ^{
-                        [self refreshDeviceList];
-                    });
-                }];
-            }
-        });
+    ThingSmartHomeManager *manager = [ThingSmartHomeManager new];
+    [manager getHomeListWithSuccess:^(NSArray<ThingSmartHomeModel *> *homes) {
+        ThingSmartHomeModel *homeModel = homes.firstObject;
+        if (!homeModel || homeModel.homeId <= 0) {
+            self.currentHome = nil;
+            self.home = nil;
+            [self.deviceListView reloadDevices:@[]];
+            return;
+        }
+        self.currentHome = homeModel;
+        self.home = [ThingSmartHome homeWithHomeId:homeModel.homeId];
+        [self.home getHomeDataWithSuccess:^(ThingSmartHomeModel *homeDetail) {
+            self.currentHome = homeDetail;
+            [self initCurrentHome];
+            [self refreshDeviceList];
+        } failure:^(NSError *error) {
+            [self initCurrentHome];
+            [self refreshDeviceList];
+        }];
     } failure:^(NSError *error) {
         NSLog(@"获取家庭列表失败: %@", error.localizedDescription);
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [UIHelper showAlertInViewController:self title:@"提示" message:@"获取家庭列表失败，请稍后重试"];
-        });
+        [self.deviceListView reloadDevices:@[]];
     }];
 }
 
@@ -796,21 +776,39 @@
         NSLog(@"initCurrentHome: 当前家庭不存在，无法初始化");
         return;
     }
-    
+
     long long homeId = self.currentHome.homeId;
-    // 注册要实现的协议
-    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingFamilyProtocol) withInstance:self];
-    id<ThingFamilyProtocol> impl = [[ThingSmartBizCore sharedInstance] serviceOfProtocol:@protocol(ThingFamilyProtocol)];
-    if ([impl respondsToSelector:@selector(updateCurrentFamilyId:)]) {
-        [impl updateCurrentFamilyId:homeId];
-        
-        // 如果 home 还没有创建，则创建
-        if (!self.home) {
-            self.home = [ThingSmartHome homeWithHomeId:homeId];
-        }
-        
-        NSLog(@"initCurrentHome: 已更新当前家庭ID为 %lld，并设置 delegate", homeId);
+    if (homeId <= 0) {
+        NSLog(@"initCurrentHome: 当前家庭 ID 无效");
+        return;
     }
+
+    if (!self.home) {
+        self.home = [ThingSmartHome homeWithHomeId:homeId];
+    }
+
+    // 7.5 使用 ThingFamilyProtocol；同时保留旧协议供仍依赖它的业务包调用。
+    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingFamilyProtocol) withInstance:self];
+    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingSmartHomeDataProtocol) withInstance:self];
+    NSLog(@"initCurrentHome: 已注册当前家庭服务，homeId: %lld", homeId);
+}
+
+#pragma mark - ThingFamilyProtocol / ThingSmartHomeDataProtocol
+
+- (long long)currentFamilyId {
+    return self.currentHome.homeId;
+}
+
+- (ThingSmartHome *)getCurrentHome {
+    long long homeId = [self currentFamilyId];
+    if (homeId <= 0) {
+        return nil;
+    }
+
+    if (!self.home) {
+        self.home = [ThingSmartHome homeWithHomeId:homeId];
+    }
+    return self.home;
 }
 
 @end

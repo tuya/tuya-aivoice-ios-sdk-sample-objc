@@ -24,7 +24,7 @@ When you use **Cursor**, **Claude Code**, or similar agents to integrate the Tuy
 1. Important integration, configuration, and business-logic notes in the project are marked in source with **`MARK: AIVoice`**.  
    **When integrating, search the project for `MARK: AIVoice` and read each comment** to avoid misconfiguration or misuse.
 
-2. Ensure the project includes `ThingSmartCryption.xcframework` and `thing_custom_config.json`.
+2. Ensure the local `ios_core_sdk/` directory contains the `ThingSmartCryption` security component and that the project includes `thing_custom_config.json`. The `ios_core_sdk/` directory is ignored by Git and must be obtained from the Tuya Developer Platform for local use.
 
 ### About thing_custom_config
 
@@ -41,7 +41,7 @@ When you use **Cursor**, **Claude Code**, or similar agents to integrate the Tuy
         "needQRCode": true,
         "device_detail_mini_program": true,
         "hotspotPrefixs": ["AAA", "BBB"],
-        "support_ble_gpt": true,
+        "support_ble_gpt": true
     },
     "colors": {
         "themeColor": "#FFA228"
@@ -68,6 +68,7 @@ When you use **Cursor**, **Claude Code**, or similar agents to integrate the Tuy
 | appScheme | Channel identifier for the SDK in Tuya Developer Platform | String | Yes | — |
 | hotspotPrefixs | Hotspot name prefix for device provisioning | Array | No | ["SmartLife"] |
 | needBle | Whether to support BLE device provisioning | Boolean | No | true |
+| support_ble_gpt | Whether to enable BLE GPT capabilities | Boolean | No | true |
 | themeColor | UI theme color | String | No | #FF5A28 |
 
 ![Demo Screenshot](https://github.com/tuya/tuya-aivoice-ios-sdk-sample-objc/blob/master/Screenshot/Demo-Screenshot.jpg)
@@ -183,6 +184,23 @@ if (impl) {
 - **Note**: Different products may use different provisioning APIs; choose the right one and handle timeouts and errors.
 - **Docs**: [Device Provisioning](https://developer.tuya.com/cn/docs/app-development/activator?id=Ka5cgmlzpfig4)
 
+#### Custom BLE Single-Point Provisioning
+
+The add button in the upper-right corner provides two provisioning methods:
+
+- **Standard provisioning** opens the Tuya provisioning UI through `ActivatorService`.
+- **Custom provisioning** opens `CustomBLEPairingViewController` and uses `CustomBLEPairingSession` for BLE discovery, token acquisition, and activation.
+
+The custom flow is: validate login and the current `homeId` → scan for BLE devices → let the user select one device → request a fresh token → activate → refresh the home device list. It supports one BLE single-point device at a time. BLE-Wi-Fi dual-mode, EZ/AP, Mesh, Beacon, Matter, and sub-device provisioning are outside this flow.
+
+Implementation paths:
+
+- `Services/Pairing/CustomBLEPairingSession.h/.m`: state machine, SDK adapter, error mapping, cancellation, and cleanup.
+- `Views/Activator/CustomBLEPairingViewController.h/.m`: scan list, selection, activation result, and in-memory page log.
+- `tuya-aivoice-ios-sdk-sample-objcTests/CustomBLEPairingSessionTests.m`: state-transition and error-handling tests with a fake adapter.
+
+The Demo's directly declared Tuya biz bundles use version 7.5.x. Custom BLE provisioning explicitly depends on `ThingSmartBusinessExtensionKit` and `ThingSmartBusinessExtensionKitBLEExtra`. Configure `NSBluetoothAlwaysUsageDescription` and the iOS 12-compatible `NSBluetoothPeripheralUsageDescription` before real-device testing. Provisioning runs only while the page is in the foreground; leaving the page stops scanning and activation.
+
 ### 6. Open Mini Program Panel (MainViewController.m)
 
 - **What**: To open the Tuya standard device panel when tapping a device in the list, use `gotoPanelViewControllerWithDevice`.
@@ -199,3 +217,21 @@ if (impl) {
 
 - **What**: After creating or selecting a home, **set the current home** (e.g. via `updateCurrentFamilyId`) so the SDK loads device list and permissions for that home.
 - **Note**: With a single home, call update current home during home or device-list init to avoid an empty list or permission issues.
+
+### 9. Device Management
+
+- **Entry**: Me → Device Management.
+- **Implementation**: `DeviceManagementViewController` and `DeviceService`.
+- **Capabilities**: refresh devices in the current home, display online status, rename a device, and remove a device from the current home.
+
+### 10. Personal Settings
+
+- **Entry**: the Me tab.
+- **Capabilities**: display the current user, update the nickname, open device management, open diagnostic log submission, and log out.
+- **Note**: The screen uses the Demo's custom UI components; operation results come from the Tuya SDK.
+
+### 11. Diagnostic Log Entry
+
+- **Entry**: Me → Upload Diagnostic Logs.
+- **Implementation**: use `ThingFeedBackProtocol` to open the Tuya feedback screen, where the user confirms the issue description and submitted information.
+- **Note**: If the feedback module or protocol service is unavailable, the Demo displays an unavailable message and does not create repository log files.

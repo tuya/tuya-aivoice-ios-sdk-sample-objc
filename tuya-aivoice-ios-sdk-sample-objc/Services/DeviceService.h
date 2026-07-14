@@ -25,6 +25,15 @@ typedef void(^DeviceFailureBlock)(NSError *error);
 - (void)getDeviceListWithSuccess:(DeviceSuccessBlock)success
                           failure:(DeviceFailureBlock)failure;
 
+- (void)renameDevice:(ThingSmartDeviceModel *)device
+               toName:(NSString *)name
+              success:(void (^)(void))success
+              failure:(DeviceFailureBlock)failure;
+
+- (void)removeDevice:(ThingSmartDeviceModel *)device
+              success:(void (^)(void))success
+              failure:(DeviceFailureBlock)failure;
+
 
 @end
 

@@ -55,5 +55,28 @@ static dispatch_queue_t getSDKQueue(void) {
     }
 }
 
+- (void)renameDevice:(ThingSmartDeviceModel *)device toName:(NSString *)name success:(void (^)(void))success failure:(DeviceFailureBlock)failure {
+    NSString *trimmedName = [name stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
+    if (trimmedName.length == 0 || !smartDevice) {
+        if (failure) { failure([NSError errorWithDomain:@"DeviceService" code:-2 userInfo:@{NSLocalizedDescriptionKey: @"设备或名称无效"}]); }
+        return;
+    }
+    [smartDevice updateName:trimmedName success:^{
+        if (success) { success(); }
+    } failure:failure];
+}
+
+- (void)removeDevice:(ThingSmartDeviceModel *)device success:(void (^)(void))success failure:(DeviceFailureBlock)failure {
+    ThingSmartDevice *smartDevice = [ThingSmartDevice deviceWithDeviceId:device.devId];
+    if (!smartDevice) {
+        if (failure) { failure([NSError errorWithDomain:@"DeviceService" code:-3 userInfo:@{NSLocalizedDescriptionKey: @"设备不存在或无权限操作"}]); }
+        return;
+    }
+    [smartDevice remove:^{
+        if (success) { success(); }
+    } failure:failure];
+}
+
 
 @end

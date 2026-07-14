@@ -54,7 +54,7 @@ Demo 工程：[tuya-aivoice-ios-sdk-sample-objc](https://github.com/tuya/tuya-ai
 在 Podfile 中添加涂鸦 pod 源和业务包依赖：
 
 ```ruby
-source 'https://github.com/CocoaPods/Specs.git'
+source 'https://cdn.cocoapods.org/'
 source 'https://github.com/tuya/tuya-pod-specs.git'
 
 use_modular_headers!
@@ -64,31 +64,32 @@ use_frameworks! :linkage => :static
 
 target 'YourApp' do
 
-  # [必选] 安全文件（本地引用，需放在工程根目录）
-  pod 'ThingSmartCryption', :path => './'
+  # [必选] 安全组件（本地引用，不提交到 Git）
+  pod 'ThingSmartCryption', :path => './ios_core_sdk'
 
   # [必选] AI 音频 UI 业务包
-  pod 'ThingSmartAIVoiceBizBundle', '~> 6.11.0'
+  pod 'ThingSmartAIVoiceBizBundle', '~> 7.5.0'
 
   # [必选] 小程序 UI 业务包
-  pod 'ThingSmartMiniAppBizBundle', '~> 6.11.0'
-  pod 'ThingSmartBaseKitBizBundle', '~> 6.11.0'
-  pod 'ThingSmartBizKitBizBundle', '~> 6.11.0'
+  pod 'ThingSmartMiniAppBizBundle', '~> 7.5.0'
+  pod 'ThingSmartBaseKitBizBundle', '~> 7.5.0'
+  pod 'ThingSmartBizKitBizBundle', '~> 7.5.0'
 
   # [可选] 设备配网 UI 业务包 — 无配网需求可不加
-  pod 'ThingSmartActivatorBizBundle', '~> 6.11.0'
+  pod 'ThingSmartActivatorBizBundle', '~> 7.5.0'
+
+  # [可选] BLE 单点设备自定义配网
+  pod 'ThingSmartBusinessExtensionKit', '~> 7.5.0'
+  pod 'ThingSmartBusinessExtensionKitBLEExtra', '~> 7.5.0'
 
   # [可选] 设备面板 UI 业务包 — 无设备控制需求可不加
-  pod 'ThingSmartPanelBizBundle', '~> 6.11.0'
+  pod 'ThingSmartPanelBizBundle', '~> 7.5.0'
 
   # [可选] 设备详情 UI 业务包
-  pod 'ThingSmartDeviceDetailBizBundle', '~> 6.11.0'
-
-  # [可选] 家庭 UI 业务包
-  pod 'ThingSmartFamilyBizBundle', '~> 6.11.0'
+  pod 'ThingSmartDeviceDetailBizBundle', '~> 7.5.0'
 
   # [可选] 设备 OTA 升级 UI 业务包
-  # pod 'ThingSmartOTABizBundle', '~> 6.11.0'
+  # pod 'ThingSmartOTABizBundle', '~> 7.5.0'
 
 end
 
@@ -107,7 +108,7 @@ end
 
 ### Step 2: 配置文件
 
-需要准备两个配置文件和一个安全框架，均从 [涂鸦 IoT 开发平台](https://platform.tuya.com/) 获取。
+需要准备两个配置文件和一个安全组件，均从 [涂鸦 IoT 开发平台](https://platform.tuya.com/) 获取。
 
 #### AppKey.h
 
@@ -115,6 +116,8 @@ end
 #define APP_KEY        @"<你的 AppKey>"
 #define APP_SECRET_KEY @"<你的 SecretKey>"
 ```
+
+真实凭据只用于本地开发环境。不要将填写后的 `AppKey.h`、appId、AppKey、SecretKey 或渠道标识提交到 Git。
 
 #### thing_custom_config.json
 
@@ -154,7 +157,7 @@ end
 
 #### ThingSmartCryption.xcframework
 
-确保从涂鸦平台下载的 `ThingSmartCryption.xcframework` 已放在工程根目录，并与 Podfile 中 `:path => './'` 对应。
+确保从涂鸦平台下载的 `ThingSmartCryption` 安全组件已放在本地 `ios_core_sdk/` 目录，并与 Podfile 中 `:path => './ios_core_sdk'` 对应。该目录包含应用专属安全材料，已由 `.gitignore` 忽略，不应提交到仓库。
 
 - 文档：[准备工作](https://developer.tuya.com/cn/docs/app-development/preparation?id=Ka69nt983bhh5)
 
@@ -165,7 +168,6 @@ end
 ```objc
 #import "AppKey.h"
 #import <ThingSmartBizCore/ThingSmartBizCore.h>
-#import <ThingModuleServices/ThingFamilyProtocol.h>
 #import <ThingSmartBaseKit/ThingSmartBaseKit.h>
 #import <ThingSmartMiniAppBizBundle/ThingSmartMiniAppBizBundle.h>
 #import <ThingModuleManager/ThingModuleManager.h>
@@ -184,11 +186,7 @@ end
     // 3.（可选）开启 vConsole 调试，仅 DEBUG 使用
     [[ThingMiniAppClient debugClient] vConsoleDebugEnable:YES];
 
-    // 4. 注册配网协议实现（ActivatorService 需实现 ThingFamilyProtocol）
-    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingFamilyProtocol)
-                                          withInstance:[ActivatorService sharedInstance]];
-
-    // 5. 将启动事件转发给模块管理器
+    // 4. 将启动事件转发给模块管理器
     return [[ThingModuleManager sharedInstance] application:application
                              didFinishLaunchingWithOptions:launchOptions];
 }
@@ -286,6 +284,10 @@ ThingSmartHomeManager *homeManager = [ThingSmartHomeManager new];
 
 ### Step 6: 设备配网
 
+Demo 提供标准配网和 BLE 单点设备自定义配网两种入口。
+
+#### 标准配网
+
 通过 `ThingActivatorProtocol` 调起配网页面，支持 Wi-Fi、蓝牙等多种配网方式。
 
 ```objc
@@ -312,7 +314,52 @@ if ([impl respondsToSelector:@selector(gotoQRCodeViewControllerWithUserInfo:)]) 
 }
 ```
 
+#### BLE 单点设备自定义配网
+
+`CustomBLEPairingSession` 封装 BLE 搜索、Token 获取、激活、取消清理和错误映射，`CustomBLEPairingViewController` 负责扫描列表、设备选择和结果展示。
+
+调用顺序：
+
+1. 确认用户已登录，并取得有效的当前 `homeId`。
+2. 调用 `startWithHomeID:eventHandler:` 开始扫描。
+3. 从回调的设备列表中选择一台设备。
+4. 调用 `activateDeviceWithIdentifier:`；Session 会停止扫描、获取新 Token 并开始激活。
+5. 成功后刷新当前家庭的设备列表；取消或离开页面时调用 `cancel`。
+
+```objc
+CustomBLEPairingSession *session = [CustomBLEPairingSession new];
+[session startWithHomeID:homeId eventHandler:^(CustomBLEPairingSnapshot *snapshot) {
+    if (snapshot.state == CustomBLEPairingStateScanning) {
+        // 使用 snapshot.devices 更新扫描列表
+    } else if (snapshot.state == CustomBLEPairingStateSucceeded) {
+        NSLog(@"配网成功: %@", snapshot.resultDevice.deviceID);
+    } else if (snapshot.state == CustomBLEPairingStateFailed) {
+        NSLog(@"配网失败 [%ld]: %@",
+              (long)snapshot.failure.code,
+              snapshot.failure.message);
+    }
+}];
+```
+
+该接口示例只处理 BLE 单点设备，每次激活一台设备，不用于 BLE-Wi-Fi 双模、EZ/AP、Mesh、Beacon、Matter 或子设备。Token 在用户选择设备后重新获取，不应跨配网会话复用。
+
 - 文档：[设备配网](https://developer.tuya.com/cn/docs/app-development/activator?id=Ka5cgmlzpfig4)
+
+---
+
+## Demo 页面与服务
+
+### 设备管理
+
+`DeviceManagementViewController` 通过 `DeviceService` 获取当前家庭的设备列表，并提供刷新、在线状态展示、重命名和移除设备操作。使用前需要完成 Step 5 的家庭详情加载和当前家庭设置。
+
+### 个人设置
+
+`MineViewController` 展示当前用户信息，并调用 `ThingSmartUser` 完成昵称修改和退出登录。页面同时提供设备管理和诊断日志入口。
+
+### 诊断日志入口
+
+`MineViewController` 通过 `ThingFeedBackProtocol` 打开涂鸦反馈页面。调用前检查协议服务是否响应目标方法；服务不可用时向用户显示提示。该入口不在仓库中写入日志文件。
 
 ---
 
@@ -405,6 +452,6 @@ if (impl) {
 ## 注意事项
 
 - Demo 源码中用 `MARK: AIVoice` 标注了所有关键集成点，集成时请在工程内搜索 `MARK: AIVoice` 逐条阅读。
-- 工程中必须包含 `ThingSmartCryption.xcframework` 和 `thing_custom_config.json`，缺少任一将导致 SDK 无法正常工作。
+- 本地 `ios_core_sdk/` 中必须包含 `ThingSmartCryption` 安全组件，工程 Bundle Resources 中必须包含 `thing_custom_config.json`；缺少任一项都会导致 SDK 无法正常工作。
 - 小程序路由常量（`MiniAppRoutes.h`）中的 AppID 和 URL 需与涂鸦平台上的小程序配置一致，否则跳转会失败。
 - 设备列表为空的常见原因：未创建家庭、未调用 `getHomeDataWithSuccess:` 获取家庭详情、未调用 `updateCurrentFamilyId:` 设置当前家庭。

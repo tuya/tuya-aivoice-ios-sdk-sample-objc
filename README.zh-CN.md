@@ -22,7 +22,7 @@ AI 音频业务包 Demo 地址: [tuya-aivoice-ios-sdk-sample-objc](https://githu
 1. 项目中与接入、配置、业务逻辑强相关的**注意事项**已在源码中用 **`MARK: AIVoice`** 标出。  
 **请务必在集成时，在工程内搜索 `MARK: AIVoice`，逐条阅读对应注释**，避免漏配或误用。
 
-2. 请确保项目工程包含了 `ThingSmartCryption.xcframework` 和 `thing_custom_config.json`
+2. 请确保 `ios_core_sdk/` 中包含本地 `ThingSmartCryption` 安全组件，并且工程包含 `thing_custom_config.json`。`ios_core_sdk/` 已被 Git 忽略，需要开发者从涂鸦开发者平台获取后放入本地目录。
 
 ### 关于 thing_custom_config 的简介
 ```json
@@ -38,7 +38,7 @@ AI 音频业务包 Demo 地址: [tuya-aivoice-ios-sdk-sample-objc](https://githu
         "needQRCode": true,
         "device_detail_mini_program": true,
         "hotspotPrefixs": ["AAA", "BBB"],
-        "support_ble_gpt": true,
+        "support_ble_gpt": true
     },
     "colors": {
         "themeColor": "#FFA228"
@@ -65,6 +65,7 @@ AI 音频业务包 Demo 地址: [tuya-aivoice-ios-sdk-sample-objc](https://githu
 | appScheme | 涂鸦开发者平台 中对应 SDK 中的 渠道标识符 | String | 是 | 无 |
 | hotspotPrefixs | 配网设备热点前缀 | Array | 否 | ["SmartLife"] |
 | needBle | 是否需要支持蓝牙设备配网 | Boolean | 否 | true |
+| support_ble_gpt | 是否启用 BLE GPT 相关能力 | Boolean | 否 | true |
 | themeColor | UI 主题色设置 | String | 否 | #FF5A28 |
 
 ![Demo-Screenshot](https://github.com/tuya/tuya-aivoice-ios-sdk-sample-objc/blob/master/Screenshot/Demo-Screenshot.jpg)
@@ -180,6 +181,23 @@ if (impl) {
 - **注意**：不同设备/品类可能对应不同配网方式，需根据产品选择合适接口并处理超时与错误。  
 - **文档**：[设备配网](https://developer.tuya.com/cn/docs/app-development/activator?id=Ka5cgmlzpfig4)
 
+#### BLE 单点设备自定义配网
+
+首页右上角的添加入口提供两种配网方式：
+
+- **正常添加**：使用 `ActivatorService` 打开涂鸦配网 UI。
+- **自定义添加**：进入 `CustomBLEPairingViewController`，通过 `CustomBLEPairingSession` 调用 BLE 搜索、Token 获取和设备激活接口。
+
+自定义流程为：检查登录状态和当前 `homeId` → 扫描 BLE 设备 → 用户选择设备 → 获取新 Token → 激活设备 → 刷新家庭设备列表。该流程仅面向 BLE 单点设备，每次激活一台设备，不包含 BLE-Wi-Fi 双模、EZ/AP、Mesh、Beacon、Matter 或子设备配网。
+
+相关实现：
+
+- `Services/Pairing/CustomBLEPairingSession.h/.m`：状态机、SDK Adapter、错误映射和取消清理。
+- `Views/Activator/CustomBLEPairingViewController.h/.m`：扫描、选择、激活结果和页面日志 UI。
+- `tuya-aivoice-ios-sdk-sample-objcTests/CustomBLEPairingSessionTests.m`：使用模拟 Adapter 验证状态迁移和错误处理。
+
+Demo 直接声明的涂鸦业务包依赖统一为 7.5.x，自定义 BLE 配网显式依赖 `ThingSmartBusinessExtensionKit` 和 `ThingSmartBusinessExtensionKitBLEExtra`。真机运行前需要配置 `NSBluetoothAlwaysUsageDescription` 和兼容 iOS 12 的 `NSBluetoothPeripheralUsageDescription`，并准备处于待配网状态且可绑定到当前应用的 BLE 单点设备。配网仅在页面前台执行，离开页面后停止扫描和激活。
+
 ### 6. 跳转小程序面板页（MainViewController.m）
 
 - **说明**：点击设备列表中的设备时，若需跳转到涂鸦标准设备面板，可调用 `gotoPanelViewControllerWithDevice` 接口。  
@@ -197,3 +215,20 @@ if (impl) {
 - **说明**：创建或选择家庭后，必须**设置当前家庭**（如通过 `updateCurrentFamilyId`），SDK 才会按该家庭拉取设备列表与权限。  
 - **注意**：若仅有一个家庭，建议在首页或设备列表初始化时调用更新当前家庭，避免设备列表为空或权限异常。
 
+### 9. 设备管理
+
+- **入口**：我的 → 设备管理。
+- **实现**：`DeviceManagementViewController` 与 `DeviceService`。
+- **能力**：刷新当前家庭的设备列表、展示在线状态、修改设备名称、将设备从当前家庭移除。
+
+### 10. 个人设置
+
+- **入口**：底部“我的”页面。
+- **能力**：展示当前用户信息、修改昵称、进入设备管理、打开诊断日志入口和退出登录。
+- **说明**：页面使用 Demo 自定义 UI 组件实现，交互结果仍以涂鸦 SDK 返回为准。
+
+### 11. 诊断日志入口
+
+- **入口**：我的 → 上传诊断日志。
+- **实现**：通过 `ThingFeedBackProtocol` 打开涂鸦反馈页面，由用户确认问题描述和需要提交的信息。
+- **注意**：当前构建未加载反馈模块或协议服务不可用时，Demo 会显示“日志服务不可用”，不会在仓库中生成日志文件。
