@@ -34,8 +34,6 @@
 		2F779DE82F2A37F7003B1627 /* Exceptions for "tuya-aivoice-ios-sdk-sample-objc" folder in "tuya-aivoice-ios-sdk-sample-objc" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				.cursor/family_rules.mdc,
-				.cursor/miniapp_rules.mdc,
 				Info.plist,
 			);
 			target = 2F779D8E2F2A367B003B1627 /* tuya-aivoice-ios-sdk-sample-objc */;
@@ -53,8 +51,6 @@
 		};
 		A10000000000000000000001 /* tuya-aivoice-ios-sdk-sample-objcTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = "tuya-aivoice-ios-sdk-sample-objcTests";
 			sourceTree = "<group>";
 		};
@@ -251,9 +247,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-tuya-aivoice-ios-sdk-sample-objc/Pods-tuya-aivoice-ios-sdk-sample-objc-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-tuya-aivoice-ios-sdk-sample-objc/Pods-tuya-aivoice-ios-sdk-sample-objc-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -268,9 +268,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-tuya-aivoice-ios-sdk-sample-objc/Pods-tuya-aivoice-ios-sdk-sample-objc-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-tuya-aivoice-ios-sdk-sample-objc/Pods-tuya-aivoice-ios-sdk-sample-objc-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
