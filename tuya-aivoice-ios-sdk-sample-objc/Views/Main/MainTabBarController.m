@@ -6,6 +6,7 @@
 #import "MainTabBarController.h"
 #import "MainViewController.h"
 #import "MineViewController.h"
+#import "NativeSDKViewController.h"
 
 @implementation MainTabBarController
 
@@ -20,15 +21,20 @@
         homeNav.tabBarItem.selectedImage = [UIImage systemImageNamed:@"house.fill"];
     }
 
+    NativeSDKViewController *sdkVC = [[NativeSDKViewController alloc] init];
+    sdkVC.title = @"Native SDK";
+    UINavigationController *sdkNav = [[UINavigationController alloc] initWithRootViewController:sdkVC];
+    sdkNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"SDK" image:[UIImage systemImageNamed:@"waveform"] tag:1];
+
     MineViewController *mineVC = [[MineViewController alloc] init];
     mineVC.title = @"我的";
     UINavigationController *mineNav = [[UINavigationController alloc] initWithRootViewController:mineVC];
-    mineNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"我的" image:[UIImage systemImageNamed:@"person"] tag:1];
+    mineNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"我的" image:[UIImage systemImageNamed:@"person"] tag:2];
     if (@available(iOS 13.0, *)) {
         mineNav.tabBarItem.selectedImage = [UIImage systemImageNamed:@"person.fill"];
     }
 
-    self.viewControllers = @[ homeNav, mineNav ];
+    self.viewControllers = @[ homeNav, sdkNav, mineNav ];
 }
 
 @end

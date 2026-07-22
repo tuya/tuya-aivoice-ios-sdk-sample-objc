@@ -60,3 +60,6 @@ log/
 
 # Local app-specific security SDK
 /ios_core_sdk/
+
+# Agent session artifacts (plan docs, scratch)
+.zcode/
