@@ -745,9 +745,10 @@
     [manager getHomeListWithSuccess:^(NSArray<ThingSmartHomeModel *> *homes) {
         ThingSmartHomeModel *homeModel = homes.firstObject;
         if (!homeModel || homeModel.homeId <= 0) {
+            // 新用户无家庭，自动创建默认家庭。
             self.currentHome = nil;
             self.home = nil;
-            [self.deviceListView reloadDevices:@[]];
+            [self createDefaultHome];
             return;
         }
         self.currentHome = homeModel;
@@ -762,6 +763,24 @@
         }];
     } failure:^(NSError *error) {
         NSLog(@"获取家庭列表失败: %@", error.localizedDescription);
+        [self.deviceListView reloadDevices:@[]];
+    }];
+}
+
+/// 新用户首次登录后自动创建默认家庭。
+- (void)createDefaultHome {
+    ThingSmartHomeManager *manager = [ThingSmartHomeManager new];
+    [manager addHomeWithName:@"我的家庭"
+                     geoName:@"杭州"
+                       rooms:@[@"客厅"]
+                    latitude:30.27
+                   longitude:120.15
+                     success:^(long long homeId) {
+        NSLog(@"默认家庭创建成功，homeId: %lld", homeId);
+        // 创建成功后重新加载家庭列表。
+        [self loadHomeList];
+    } failure:^(NSError *error) {
+        NSLog(@"默认家庭创建失败: %@", error.localizedDescription);
         [self.deviceListView reloadDevices:@[]];
     }];
 }
