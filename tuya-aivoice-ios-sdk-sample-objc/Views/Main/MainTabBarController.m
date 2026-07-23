@@ -13,6 +13,14 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
+    // TabBar 纯白不透明背景，避免页面内容透出。
+    UITabBarAppearance *appearance = [[UITabBarAppearance alloc] init];
+    [appearance configureWithOpaqueBackground];
+    appearance.backgroundColor = UIColor.whiteColor;
+    appearance.shadowColor = [UIColor colorWithWhite:0 alpha:0.08];
+    self.tabBar.standardAppearance = appearance;
+    self.tabBar.scrollEdgeAppearance = appearance;
+
     MainViewController *homeVC = [[MainViewController alloc] init];
     homeVC.title = @"首页";
     UINavigationController *homeNav = [[UINavigationController alloc] initWithRootViewController:homeVC];

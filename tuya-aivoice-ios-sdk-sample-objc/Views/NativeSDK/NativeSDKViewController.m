@@ -4,10 +4,11 @@
 //
 
 #import "NativeSDKViewController.h"
+#import "NativeAudioService.h"
+#import "NativeRecordListViewController.h"
 #import "DeviceService.h"
 #import <AVFAudio/AVFAudio.h>
 #import <ThingAudioRecordInterface/ThingAudioRecordInterface.h>
-#import <TUniAudioDetectManager/ThingAudioDetectManagerNative.h>
 #import <math.h>
 
 /// 振幅立柱最大数量；与立柱宽度配合填满屏幕宽度，参考 Apple 语音备忘录密度。
@@ -25,14 +26,42 @@ static const CGFloat kNativeSDKWaveformHeightRatio = 1.0;
 /// 手机麦克风的 deviceId 约定，设备列表中每台设备的 deviceId 为其 devId。
 static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
 
+/// 可选语种表：{代码, 展示名}，覆盖涂鸦 AI 语音常用语种。索引顺序即 ActionSheet 展示顺序。
+static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void) {
+    static dispatch_once_t once;
+    static NSArray *languages = nil;
+    dispatch_once(&once, ^{
+        languages = @[
+            @{@"code": @"zh", @"name": @"中文"},
+            @{@"code": @"en", @"name": @"英语"},
+            @{@"code": @"ja", @"name": @"日语"},
+            @{@"code": @"ko", @"name": @"韩语"},
+            @{@"code": @"fr", @"name": @"法语"},
+            @{@"code": @"de", @"name": @"德语"},
+            @{@"code": @"es", @"name": @"西班牙语"},
+            @{@"code": @"ru", @"name": @"俄语"},
+            @{@"code": @"it", @"name": @"意大利语"},
+            @{@"code": @"pt", @"name": @"葡萄牙语"},
+            @{@"code": @"th", @"name": @"泰语"},
+            @{@"code": @"vi", @"name": @"越南语"},
+            @{@"code": @"ar", @"name": @"阿拉伯语"},
+            @{@"code": @"hi", @"name": @"印地语"},
+        ];
+    });
+    return languages;
+}
+
 @interface NativeSDKViewController () <ThingAudioRecordManagerDelegate>
 
-@property (nonatomic, strong) id<ThingAudioDetectManagerNativeProtocol> audioManager;
 @property (nonatomic, copy) NSArray<ThingSmartDeviceModel *> *devices;
 /// 当前选中的录音来源 deviceId：手机麦克风为 `kNativeSDKPhoneMicDeviceId`，设备为 devId。
 @property (nonatomic, copy) NSString *selectedSourceDeviceId;
 @property (nonatomic, copy, nullable) NSString *listenerDeviceId;
 @property (nonatomic, assign) ThingAudioSource selectedAudioSource;
+/// 当前选中的源语言代码（originalLanguage），默认 zh。
+@property (nonatomic, copy) NSString *selectedOriginalLanguage;
+/// 当前选中的目标语言代码（targetLanguage），默认 en。
+@property (nonatomic, copy) NSString *selectedTargetLanguage;
 
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIStackView *contentStack;
@@ -42,6 +71,8 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
 @property (nonatomic, strong) UISwitch *asrSwitch;
 @property (nonatomic, strong) UISwitch *nlgSwitch;
 @property (nonatomic, strong) UISwitch *ttsSwitch;
+@property (nonatomic, strong) UIButton *originalLanguageButton;
+@property (nonatomic, strong) UIButton *targetLanguageButton;
 @property (nonatomic, strong) UILabel *stateLabel;
 @property (nonatomic, strong) UILabel *durationLabel;
 @property (nonatomic, strong) UILabel *taskLabel;
@@ -75,11 +106,16 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    self.title = @"Native SDK";
-    self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
-    self.audioManager = [ThingAudioDetectManagerNative sharedInstance];
+    [self configureFamilyNavigationWithTitle:@"录音"
+                                   leftTitle:nil
+                                  leftAction:nil
+                                  rightTitle:nil
+                                 rightAction:nil];
+
     self.selectedSourceDeviceId = kNativeSDKPhoneMicDeviceId;
     self.selectedAudioSource = ThingSystemMic16KMono;
+    self.selectedOriginalLanguage = @"zh";
+    self.selectedTargetLanguage = @"en";
     self.recordState = ThingAudioRecordStateUnknown;
     self.amplitudes = [NSMutableArray array];
     self.waveformBars = [NSMutableArray array];
@@ -129,7 +165,7 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     [self.scrollView addSubview:self.contentStack];
 
     [NSLayoutConstraint activateConstraints:@[
-        [self.scrollView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [self.scrollView.topAnchor constraintEqualToAnchor:self.familyContentGuide.topAnchor],
         [self.scrollView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [self.scrollView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [self.scrollView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor],
@@ -138,6 +174,9 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
         [self.contentStack.trailingAnchor constraintEqualToAnchor:self.scrollView.frameLayoutGuide.trailingAnchor constant:-16],
         [self.contentStack.bottomAnchor constraintEqualToAnchor:self.scrollView.contentLayoutGuide.bottomAnchor constant:-24],
     ]];
+
+    // 录音列表入口卡片：放在内容最顶部，方便客户查看历史录音。
+    [self.contentStack addArrangedSubview:[self recordListEntryCard]];
 
     self.refreshButton = [self actionButtonWithTitle:@"刷新" action:@selector(refreshButtonTapped:)];
     [self.refreshButton.widthAnchor constraintEqualToConstant:72].active = YES;
@@ -167,6 +206,15 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     UIView *nlgRow = [self toggleRowWithTitle:@"NLG 翻译" switchControl:self.nlgSwitch];
     UIView *ttsRow = [self toggleRowWithTitle:@"TTS 播报" switchControl:self.ttsSwitch];
 
+    self.originalLanguageButton = [self actionButtonWithTitle:@"中文"
+                                                      action:@selector(originalLanguageButtonTapped:)];
+    self.originalLanguageButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    self.targetLanguageButton = [self actionButtonWithTitle:@"英语"
+                                                    action:@selector(targetLanguageButtonTapped:)];
+    self.targetLanguageButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    UIView *originalLanguageRow = [self labeledRowWithTitle:@"源语言" control:self.originalLanguageButton];
+    UIView *targetLanguageRow = [self labeledRowWithTitle:@"目标语言" control:self.targetLanguageButton];
+
     UIStackView *configStack = [self verticalStack];
     [configStack addArrangedSubview:[self fieldTitleLabel:@"录音来源"]];
     [configStack addArrangedSubview:sourceRow];
@@ -176,6 +224,10 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     [configStack addArrangedSubview:asrRow];
     [configStack addArrangedSubview:nlgRow];
     [configStack addArrangedSubview:ttsRow];
+    [configStack addArrangedSubview:[self separatorLine]];
+    [configStack addArrangedSubview:[self fieldTitleLabel:@"语言设置"]];
+    [configStack addArrangedSubview:originalLanguageRow];
+    [configStack addArrangedSubview:targetLanguageRow];
     [self.contentStack addArrangedSubview:[self cardWithTitle:@"录音配置" content:configStack]];
 
     self.stateLabel = [self valueLabel];
@@ -282,6 +334,19 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     return row;
 }
 
+/// 标签（左，固定宽度）+ 控件（右，吃满剩余宽度），用于源/目标语言这类带标题的行。
+- (UIView *)labeledRowWithTitle:(NSString *)title control:(UIView *)control {
+    UILabel *label = [[UILabel alloc] init];
+    label.text = title;
+    label.font = [UIFont systemFontOfSize:15];
+    label.textColor = UIColor.labelColor;
+    [label setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+    [label setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+    [label.widthAnchor constraintEqualToConstant:78].active = YES;
+    UIStackView *row = [self horizontalStackWithViews:@[label, control]];
+    return row;
+}
+
 - (UIView *)separatorLine {
     UIView *line = [[UIView alloc] init];
     line.backgroundColor = UIColor.separatorColor;
@@ -295,6 +360,69 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     label.textColor = UIColor.labelColor;
     label.textAlignment = NSTextAlignmentCenter;
     return label;
+}
+
+- (UIView *)recordListEntryCard {
+    UIView *card = [[UIView alloc] init];
+    card.backgroundColor = [UIColor colorWithRed:1.0 green:0.6 blue:0.4 alpha:0.12];
+    card.layer.cornerRadius = 14;
+
+    UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"list.bullet.rectangle"]];
+    icon.tintColor = self.familyAccentColor;
+    icon.contentMode = UIViewContentModeScaleAspectFit;
+    icon.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UILabel *label = [[UILabel alloc] init];
+    label.text = @"录音列表";
+    label.font = [UIFont systemFontOfSize:17 weight:UIFontWeightSemibold];
+    label.textColor = self.familyAccentColor;
+    label.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UILabel *subtitle = [[UILabel alloc] init];
+    subtitle.text = @"查看历史录音、转写与总结";
+    subtitle.font = [UIFont systemFontOfSize:13];
+    subtitle.textColor = self.familySecondaryTextColor;
+    subtitle.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UIImageView *chevron = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"chevron.right"]];
+    chevron.tintColor = self.familySecondaryTextColor;
+    chevron.contentMode = UIViewContentModeScaleAspectFit;
+    chevron.translatesAutoresizingMaskIntoConstraints = NO;
+
+    [card addSubview:icon];
+    [card addSubview:label];
+    [card addSubview:subtitle];
+    [card addSubview:chevron];
+
+    [NSLayoutConstraint activateConstraints:@[
+        [icon.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:16],
+        [icon.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+        [icon.widthAnchor constraintEqualToConstant:24],
+        [icon.heightAnchor constraintEqualToConstant:24],
+
+        [label.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:12],
+        [label.topAnchor constraintEqualToAnchor:card.topAnchor constant:16],
+
+        [subtitle.leadingAnchor constraintEqualToAnchor:label.leadingAnchor],
+        [subtitle.topAnchor constraintEqualToAnchor:label.bottomAnchor constant:2],
+        [subtitle.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-16],
+
+        [chevron.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-16],
+        [chevron.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+        [chevron.widthAnchor constraintEqualToConstant:16],
+        [chevron.heightAnchor constraintEqualToConstant:16],
+    ]];
+
+    // 整张卡片可点击。
+    card.userInteractionEnabled = YES;
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(recordListEntryTapped)];
+    [card addGestureRecognizer:tap];
+    return card;
+}
+
+- (void)recordListEntryTapped {
+    NativeRecordListViewController *list = [[NativeRecordListViewController alloc] init];
+    [self.navigationController pushViewController:list animated:YES];
 }
 
 - (UIButton *)actionButtonWithTitle:(NSString *)title action:(SEL)action {
@@ -410,7 +538,7 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     NSString *activeSourceId = nil;
     ThingAudioRecordObject *activeTask = nil;
     for (NSString *deviceId in candidateIds) {
-        ThingAudioRecordObject *task = [self.audioManager recordTransferTaskWithDeviceId:deviceId];
+        ThingAudioRecordObject *task = [[NativeAudioService sharedInstance] activeTaskWithDeviceId:deviceId];
         if (task && (task.state == ThingAudioRecordStateOngoing || task.state == ThingAudioRecordStatePaused)) {
             activeSourceId = deviceId;
             activeTask = task;
@@ -470,6 +598,66 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     }
 }
 
+#pragma mark - Language selection
+
+- (void)originalLanguageButtonTapped:(UIButton *)sender {
+    [self presentLanguagePickerWithTitle:@"选择源语言"
+                                 current:self.selectedOriginalLanguage
+                                   sender:sender
+                                onSelect:^(NSString *code) {
+        self.selectedOriginalLanguage = code;
+        [self.originalLanguageButton setTitle:[self displayNameForLanguageCode:code] forState:UIControlStateNormal];
+        [self appendLog:[NSString stringWithFormat:@"源语言切换为 %@（%@）", code, [self displayNameForLanguageCode:code]]];
+    }];
+}
+
+- (void)targetLanguageButtonTapped:(UIButton *)sender {
+    [self presentLanguagePickerWithTitle:@"选择目标语言"
+                                 current:self.selectedTargetLanguage
+                                   sender:sender
+                                onSelect:^(NSString *code) {
+        self.selectedTargetLanguage = code;
+        [self.targetLanguageButton setTitle:[self displayNameForLanguageCode:code] forState:UIControlStateNormal];
+        [self appendLog:[NSString stringWithFormat:@"目标语言切换为 %@（%@）", code, [self displayNameForLanguageCode:code]]];
+    }];
+}
+
+/// 弹出语种 ActionSheet；录音中或操作进行中直接拦截，不弹窗。
+- (void)presentLanguagePickerWithTitle:(NSString *)title
+                               current:(NSString *)currentCode
+                                 sender:(UIView *)sender
+                              onSelect:(void (^)(NSString *code))onSelect {
+    if (self.operationPending || [self isRecordingActive]) return;
+
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:title
+                                                                   message:nil
+                                                            preferredStyle:UIAlertControllerStyleActionSheet];
+    __weak typeof(self) weakSelf = self;
+    for (NSDictionary<NSString *, NSString *> *lang in kNativeSDKLanguages()) {
+        NSString *code = lang[@"code"];
+        NSString *name = lang[@"name"];
+        NSString *actionTitle = [currentCode isEqualToString:code]
+                                ? [NSString stringWithFormat:@"%@  ✓", name]
+                                : name;
+        [sheet addAction:[UIAlertAction actionWithTitle:actionTitle style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            if (onSelect) onSelect(code);
+        }]];
+    }
+    [sheet addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [self configurePopoverForAlert:sheet sourceView:sender];
+    [self presentViewController:sheet animated:YES completion:nil];
+}
+
+/// 语言代码 -> 展示名；未命中则回退展示代码本身。
+- (NSString *)displayNameForLanguageCode:(NSString *)code {
+    for (NSDictionary<NSString *, NSString *> *lang in kNativeSDKLanguages()) {
+        if ([lang[@"code"] isEqualToString:code]) return lang[@"name"];
+    }
+    return code.length > 0 ? code : @"-";
+}
+
 - (NSString *)titleForAudioSource:(ThingAudioSource)source {
     switch (source) {
         case ThingSystemMic16KMono: return @"手机麦克风";
@@ -487,7 +675,7 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
 
     if (![self.listenerDeviceId isEqualToString:deviceId]) {
         [self unbindRecordListener];
-        [self.audioManager addRecordListener:self deviceId:deviceId];
+        [[NativeAudioService sharedInstance] addRecordListener:self deviceId:deviceId];
         self.listenerDeviceId = deviceId;
     }
     [self updateSourceButtonTitle];
@@ -495,7 +683,7 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
 
 - (void)unbindRecordListener {
     if (self.listenerDeviceId.length > 0) {
-        [self.audioManager removeRecordListener:self deviceId:self.listenerDeviceId];
+        [[NativeAudioService sharedInstance] removeRecordListener:self deviceId:self.listenerDeviceId];
         self.listenerDeviceId = nil;
     }
 }
@@ -527,17 +715,19 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     if ([self.selectedSourceDeviceId isEqualToString:kNativeSDKPhoneMicDeviceId]) {
         AVAudioSessionRecordPermission permission = AVAudioSession.sharedInstance.recordPermission;
         if (permission == AVAudioSessionRecordPermissionDenied) {
-            [self showMessageWithTitle:@"无法使用麦克风" message:@"请在系统设置中允许此 App 访问麦克风后重试。"];
+            [self showFamilyMessageWithTitle:@"无法使用麦克风" message:@"请在系统设置中允许此 App 访问麦克风后重试。"];
             return;
         }
         if (permission == AVAudioSessionRecordPermissionUndetermined) {
             __weak typeof(self) weakSelf = self;
             [AVAudioSession.sharedInstance requestRecordPermission:^(BOOL granted) {
                 dispatch_async(dispatch_get_main_queue(), ^{
+                    __strong typeof(weakSelf) self = weakSelf;
+                    if (!self) return;
                     if (granted) {
-                        [weakSelf beginRecording];
+                        [self beginRecording];
                     } else {
-                        [weakSelf showMessageWithTitle:@"麦克风权限未开启" message:@"手机麦克风录音需要麦克风权限。"];
+                        [self showFamilyMessageWithTitle:@"麦克风权限未开启" message:@"手机麦克风录音需要麦克风权限。"];
                     }
                 });
             }];
@@ -566,24 +756,22 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     config.needAmplitude = YES;
     config.needTranslate = self.nlgSwitch.isOn;
     config.needTTS = self.ttsSwitch.isOn;
-    // 其余参数默认值。
+    // 其余参数默认值。源/目标语言由「语言设置」选择器决定。
     config.needAutoRecognize = NO;
-    config.originalLanguage = @"zh";
-    config.targetLanguage = @"en";
+    config.originalLanguage = self.selectedOriginalLanguage;
+    config.targetLanguage = self.selectedTargetLanguage;
     config.startLivingStatus = 0;
     config.audio3AConfig = [[ThingAudio3AConfig alloc] initWithEnableRnAns:NO ans:NO level:0 agc:YES aec:NO];
 
     // deviceId 即录音来源：手机麦克风为 PHONE，其余为设备 devId。
     NSString *deviceId = self.selectedSourceDeviceId;
     __weak typeof(self) weakSelf = self;
-    [self.audioManager startAudioRecordingWithDeviceId:deviceId config:config success:^(ThingAudioRecordObject *task) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            __strong typeof(weakSelf) self = weakSelf;
-            if (!self) return;
-            self.operationPending = NO;
-            [self appendLog:[NSString stringWithFormat:@"start 成功 recordId=%@", task.recordId ?: @"-"]];
-            [self applyTask:task];
-        });
+    [[NativeAudioService sharedInstance] startRecordingWithDeviceId:deviceId config:config success:^(ThingAudioRecordObject *task) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+        self.operationPending = NO;
+        [self appendLog:[NSString stringWithFormat:@"start 成功 recordId=%@", task.recordId ?: @"-"]];
+        [self applyTask:task];
     } failure:^(NSError *error) {
         [weakSelf handleOperationFailure:@"开始录音失败" error:error];
     }];
@@ -596,27 +784,27 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     __weak typeof(self) weakSelf = self;
     if (self.recordState == ThingAudioRecordStatePaused) {
         [self appendLog:@"调用 resume"];
-        [self.audioManager resumeRecordTransferWithDeviceId:self.selectedSourceDeviceId success:^{
-            dispatch_async(dispatch_get_main_queue(), ^{
-                weakSelf.operationPending = NO;
-                weakSelf.recordState = ThingAudioRecordStateOngoing;
-                [weakSelf appendLog:@"resume 成功"];
-                [weakSelf startDurationTimer];
-                [weakSelf updateControls];
-            });
+        [[NativeAudioService sharedInstance] resumeRecordingWithDeviceId:self.selectedSourceDeviceId success:^{
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            self.operationPending = NO;
+            self.recordState = ThingAudioRecordStateOngoing;
+            [self appendLog:@"resume 成功"];
+            [self startDurationTimer];
+            [self updateControls];
         } failure:^(NSError *error) {
             [weakSelf handleOperationFailure:@"恢复录音失败" error:error];
         }];
     } else {
         [self appendLog:@"调用 pause"];
-        [self.audioManager pauseRecordTransferWithDeviceId:self.selectedSourceDeviceId success:^{
-            dispatch_async(dispatch_get_main_queue(), ^{
-                weakSelf.operationPending = NO;
-                weakSelf.recordState = ThingAudioRecordStatePaused;
-                [weakSelf appendLog:@"pause 成功"];
-                [weakSelf stopDurationTimer];
-                [weakSelf updateControls];
-            });
+        [[NativeAudioService sharedInstance] pauseRecordingWithDeviceId:self.selectedSourceDeviceId success:^{
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            self.operationPending = NO;
+            self.recordState = ThingAudioRecordStatePaused;
+            [self appendLog:@"pause 成功"];
+            [self stopDurationTimer];
+            [self updateControls];
         } failure:^(NSError *error) {
             [weakSelf handleOperationFailure:@"暂停录音失败" error:error];
         }];
@@ -630,11 +818,11 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     [self appendLog:@"调用 stop"];
     [self updateControls];
     __weak typeof(self) weakSelf = self;
-    [self.audioManager stopRecordTransferWithDeviceId:self.selectedSourceDeviceId success:^{
-        dispatch_async(dispatch_get_main_queue(), ^{
-            [weakSelf appendLog:@"stop 成功"];
-            [weakSelf finishRecordingWithError:nil];
-        });
+    [[NativeAudioService sharedInstance] stopRecordingWithDeviceId:self.selectedSourceDeviceId success:^{
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+        [self appendLog:@"stop 成功"];
+        [self finishRecordingWithError:nil];
     } failure:^(NSError *error) {
         [weakSelf handleOperationFailure:@"停止录音失败" error:error];
     }];
@@ -645,7 +833,7 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
         [self updateControls];
         return;
     }
-    ThingAudioRecordObject *task = [self.audioManager recordTransferTaskWithDeviceId:self.selectedSourceDeviceId];
+    ThingAudioRecordObject *task = [[NativeAudioService sharedInstance] activeTaskWithDeviceId:self.selectedSourceDeviceId];
     if (task && (task.state == ThingAudioRecordStateOngoing || task.state == ThingAudioRecordStatePaused)) {
         [self appendLog:[NSString stringWithFormat:@"恢复任务 recordId=%@ state=%lu", task.recordId ?: @"-", (unsigned long)task.state]];
         [self applyTask:task];
@@ -682,12 +870,10 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
 }
 
 - (void)handleOperationFailure:(NSString *)title error:(NSError *)error {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        self.operationPending = NO;
-        [self appendLog:[NSString stringWithFormat:@"%@ code=%ld %@", title, (long)error.code, error.localizedDescription]];
-        [self restoreSelectedDeviceTask];
-        [self showMessageWithTitle:title message:error.localizedDescription ?: @"未知错误"];
-    });
+    self.operationPending = NO;
+    [self appendLog:[NSString stringWithFormat:@"%@ code=%ld %@", title, (long)error.code, error.localizedDescription]];
+    [self restoreSelectedDeviceTask];
+    [self showFamilyMessageWithTitle:title message:error.localizedDescription ?: @"未知错误"];
 }
 
 - (void)finishRecordingWithError:(nullable NSError *)error {
@@ -696,7 +882,7 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     [self stopDurationTimer];
     [self updateControls];
     if (error) {
-        [self showMessageWithTitle:@"录音异常结束" message:error.localizedDescription ?: @"未知错误"];
+        [self showFamilyMessageWithTitle:@"录音异常结束" message:error.localizedDescription ?: @"未知错误"];
     }
 }
 
@@ -712,6 +898,8 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     self.asrSwitch.enabled = !active && !self.operationPending;
     self.nlgSwitch.enabled = !active && !self.operationPending;
     self.ttsSwitch.enabled = !active && !self.operationPending;
+    self.originalLanguageButton.enabled = !active && !self.operationPending;
+    self.targetLanguageButton.enabled = !active && !self.operationPending;
     self.startButton.enabled = hasDevice && !active && !self.operationPending;
     self.pauseButton.enabled = hasDevice && active && !self.operationPending;
     self.stopButton.enabled = hasDevice && active && !self.operationPending;
@@ -971,13 +1159,6 @@ static NSString * const kNativeSDKPhoneMicDeviceId = @"PHONE";
     self.logTextView.textColor = UIColor.labelColor;
     self.logTextView.text = [self.eventLogs componentsJoinedByString:@"\n"];
     [self.logTextView scrollRangeToVisible:NSMakeRange(self.logTextView.text.length, 0)];
-}
-
-- (void)showMessageWithTitle:(NSString *)title message:(NSString *)message {
-    if (!self.view.window || self.presentedViewController) return;
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
-    [alert addAction:[UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
 }
 
 @end

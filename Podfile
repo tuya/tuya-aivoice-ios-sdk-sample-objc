@@ -12,6 +12,8 @@ target 'tuya-aivoice-ios-sdk-sample-objc' do
   # 安全文件
   pod 'ThingSmartCryption', :path => './ios_core_sdk'
 
+  pod 'TUniAudioDetectManager', '7.8.5'
+  
   # AI 音频UI业务包
   pod 'ThingSmartAIVoiceBizBundle', '~> 7.8.0'
 
@@ -48,6 +50,7 @@ post_install do |installer|
 
       config.build_settings['CLANG_WARN_DOCUMENTATION_COMMENTS'] = 'NO'
       config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "13.0"
+      config.build_settings['SWIFT_VERSION'] = '5.0'
       config.build_settings["EXCLUDED_ARCHS[sdk=iphonesimulator*]"] = "arm64"
       
     end
