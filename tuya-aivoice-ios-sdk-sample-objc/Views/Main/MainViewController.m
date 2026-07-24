@@ -17,12 +17,13 @@
 #import <ThingModuleServices/ThingModuleServices.h>
 #import <ThingModuleServices/ThingFamilyProtocol.h>
 #import <ThingModuleServices/ThingSmartHomeDataProtocol.h>
+#import <ThingModuleManager/ThingModule.h>
 #import <ThingSmartBizCore/ThingSmartBizCore.h>
 #import <ThingSmartMiniAppBizBundle/ThingSmartMiniAppBizBundle.h>
 #import <objc/runtime.h>
 #import <QuartzCore/QuartzCore.h>
 
-@interface MainViewController () <DeviceListViewDelegate, ThingFamilyProtocol, ThingSmartHomeDataProtocol>
+@interface MainViewController () <DeviceListViewDelegate, ThingFamilyProtocol>
 
 @property (nonatomic, strong) ThingSmartHomeModel *currentHome;
 @property (nonatomic, strong) ThingSmartHome *home;
@@ -808,26 +809,16 @@
 
     // 7.5 使用 ThingFamilyProtocol；同时保留旧协议供仍依赖它的业务包调用。
     [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingFamilyProtocol) withInstance:self];
-    [[ThingSmartBizCore sharedInstance] registerService:@protocol(ThingSmartHomeDataProtocol) withInstance:self];
     NSLog(@"initCurrentHome: 已注册当前家庭服务，homeId: %lld", homeId);
+    // 更新当前家庭
+    id<ThingFamilyProtocol> family = [ThingModule serviceOfOptionalProtocol:@protocol(ThingFamilyProtocol)];
+    [family updateCurrentFamilyId:homeId];
 }
 
 #pragma mark - ThingFamilyProtocol / ThingSmartHomeDataProtocol
 
 - (long long)currentFamilyId {
     return self.currentHome.homeId;
-}
-
-- (ThingSmartHome *)getCurrentHome {
-    long long homeId = [self currentFamilyId];
-    if (homeId <= 0) {
-        return nil;
-    }
-
-    if (!self.home) {
-        self.home = [ThingSmartHome homeWithHomeId:homeId];
-    }
-    return self.home;
 }
 
 @end
