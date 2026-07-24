@@ -11,8 +11,6 @@ target 'tuya-aivoice-ios-sdk-sample-objc' do
   
   # 安全文件
   pod 'ThingSmartCryption', :path => './ios_core_sdk'
-
-  pod 'TUniAudioDetectManager', '7.8.5'
   
   # AI 音频UI业务包
   pod 'ThingSmartAIVoiceBizBundle', '~> 7.8.0'
