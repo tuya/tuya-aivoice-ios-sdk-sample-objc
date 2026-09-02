@@ -6,20 +6,31 @@
 //
 
 #import "RegisterViewController.h"
+#import "CountryPickerViewController.h"
 #import "AuthService.h"
 #import "UIHelper.h"
 #import <ThingSmartBaseKit/ThingSmartBaseKit.h>
 
+/** 账号类型：手机号 / 邮箱 */
+typedef NS_ENUM(NSInteger, RegisterAccountType) {
+    RegisterAccountTypePhone = 0,
+    RegisterAccountTypeEmail = 1,
+};
+
 @interface RegisterViewController ()
 
-@property (nonatomic, strong) UITextField *countryCodeTextField;
-@property (nonatomic, strong) UITextField *phoneNumberTextField;
+@property (nonatomic, strong) UISegmentedControl *accountTypeSegment;
+@property (nonatomic, strong) UIButton *countryButton;
+@property (nonatomic, strong) UITextField *accountTextField;
 @property (nonatomic, strong) UITextField *passwordTextField;
 @property (nonatomic, strong) UITextField *verifyCodeTextField;
 @property (nonatomic, strong) UIButton *getVerifyCodeButton;
 @property (nonatomic, strong) UIButton *registerButton;
 @property (nonatomic, strong) NSTimer *countdownTimer;
 @property (nonatomic, assign) NSInteger countdownSeconds;
+
+@property (nonatomic, strong) CountryModel *selectedCountry;
+@property (nonatomic, assign) RegisterAccountType accountType;
 
 @end
 
@@ -29,6 +40,9 @@
     [super viewDidLoad];
     
     self.view.backgroundColor = [UIColor systemBackgroundColor];
+
+    self.selectedCountry = self.preselectedCountry ?: [CountryModel lastSelectedCountry];
+    self.accountType = RegisterAccountTypePhone;
     
     // 添加关闭按钮
     UIBarButtonItem *closeButton = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemClose
@@ -37,6 +51,9 @@
     self.navigationItem.leftBarButtonItem = closeButton;
     
     [self setupUI];
+    [self setupDismissKeyboardGesture];
+    [self updateCountryButtonTitle];
+    [self updateAccountFieldForAccountType];
 }
 
 - (void)setupUI {
@@ -47,25 +64,35 @@
     titleLabel.textAlignment = NSTextAlignmentCenter;
     titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:titleLabel];
-    
-    // 国家码输入框
-    self.countryCodeTextField = [[UITextField alloc] init];
-    self.countryCodeTextField.placeholder = @"国家码(如:86)";
-    self.countryCodeTextField.borderStyle = UITextBorderStyleRoundedRect;
-    self.countryCodeTextField.keyboardType = UIKeyboardTypeNumberPad;
-    self.countryCodeTextField.text = @"86"; // 默认中国
-    self.countryCodeTextField.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:self.countryCodeTextField];
-    
-    // 手机号输入框
-    self.phoneNumberTextField = [[UITextField alloc] init];
-    self.phoneNumberTextField.placeholder = @"请输入手机号";
-    self.phoneNumberTextField.borderStyle = UITextBorderStyleRoundedRect;
-    self.phoneNumberTextField.keyboardType = UIKeyboardTypePhonePad;
-    self.phoneNumberTextField.autocapitalizationType = UITextAutocapitalizationTypeNone;
-    self.phoneNumberTextField.autocorrectionType = UITextAutocorrectionTypeNo;
-    self.phoneNumberTextField.translatesAutoresizingMaskIntoConstraints = NO;
-    [self.view addSubview:self.phoneNumberTextField];
+
+    // 账号类型切换：手机号 / 邮箱
+    self.accountTypeSegment = [[UISegmentedControl alloc] initWithItems:@[@"手机号", @"邮箱"]];
+    self.accountTypeSegment.selectedSegmentIndex = RegisterAccountTypePhone;
+    self.accountTypeSegment.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.accountTypeSegment addTarget:self action:@selector(accountTypeChanged:) forControlEvents:UIControlEventValueChanged];
+    [self.view addSubview:self.accountTypeSegment];
+
+    // 国家/地区选择（点击弹出列表，无需手动输入国家码）
+    self.countryButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    self.countryButton.titleLabel.font = [UIFont systemFontOfSize:16];
+    self.countryButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    self.countryButton.contentEdgeInsets = UIEdgeInsetsMake(0, 12, 0, 12);
+    self.countryButton.backgroundColor = [UIColor secondarySystemBackgroundColor];
+    [self.countryButton setTitleColor:[UIColor labelColor] forState:UIControlStateNormal];
+    self.countryButton.layer.cornerRadius = 8;
+    self.countryButton.layer.borderWidth = 1;
+    self.countryButton.layer.borderColor = [UIColor separatorColor].CGColor;
+    self.countryButton.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.countryButton addTarget:self action:@selector(countryButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
+    [self.view addSubview:self.countryButton];
+
+    // 账号输入框（手机号或邮箱）
+    self.accountTextField = [[UITextField alloc] init];
+    self.accountTextField.borderStyle = UITextBorderStyleRoundedRect;
+    self.accountTextField.autocapitalizationType = UITextAutocapitalizationTypeNone;
+    self.accountTextField.autocorrectionType = UITextAutocorrectionTypeNo;
+    self.accountTextField.translatesAutoresizingMaskIntoConstraints = NO;
+    [self.view addSubview:self.accountTextField];
     
     // 验证码输入框容器
     UIView *verifyCodeContainer = [[UIView alloc] init];
@@ -117,21 +144,27 @@
         // 标题
         [titleLabel.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:40],
         [titleLabel.centerXAnchor constraintEqualToAnchor:self.view.centerXAnchor],
-        
-        // 国家码输入框
-        [self.countryCodeTextField.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:50],
-        [self.countryCodeTextField.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:40],
-        [self.countryCodeTextField.widthAnchor constraintEqualToConstant:100],
-        [self.countryCodeTextField.heightAnchor constraintEqualToConstant:50],
-        
-        // 手机号输入框
-        [self.phoneNumberTextField.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:50],
-        [self.phoneNumberTextField.leadingAnchor constraintEqualToAnchor:self.countryCodeTextField.trailingAnchor constant:10],
-        [self.phoneNumberTextField.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-40],
-        [self.phoneNumberTextField.heightAnchor constraintEqualToConstant:50],
+
+        // 账号类型切换
+        [self.accountTypeSegment.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:30],
+        [self.accountTypeSegment.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:40],
+        [self.accountTypeSegment.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-40],
+        [self.accountTypeSegment.heightAnchor constraintEqualToConstant:36],
+
+        // 国家/地区选择
+        [self.countryButton.topAnchor constraintEqualToAnchor:self.accountTypeSegment.bottomAnchor constant:20],
+        [self.countryButton.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:40],
+        [self.countryButton.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-40],
+        [self.countryButton.heightAnchor constraintEqualToConstant:50],
+
+        // 账号输入框
+        [self.accountTextField.topAnchor constraintEqualToAnchor:self.countryButton.bottomAnchor constant:20],
+        [self.accountTextField.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:40],
+        [self.accountTextField.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-40],
+        [self.accountTextField.heightAnchor constraintEqualToConstant:50],
         
         // 验证码容器
-        [verifyCodeContainer.topAnchor constraintEqualToAnchor:self.countryCodeTextField.bottomAnchor constant:20],
+        [verifyCodeContainer.topAnchor constraintEqualToAnchor:self.accountTextField.bottomAnchor constant:20],
         [verifyCodeContainer.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:40],
         [verifyCodeContainer.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-40],
         [verifyCodeContainer.heightAnchor constraintEqualToConstant:50],
@@ -162,23 +195,135 @@
     ]];
 }
 
+#pragma mark - 键盘
+
+/** 点击空白处收起键盘 */
+- (void)setupDismissKeyboardGesture {
+    UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                          action:@selector(dismissKeyboard)];
+    // 不拦截按钮等控件的点击事件
+    tap.cancelsTouchesInView = NO;
+    [self.view addGestureRecognizer:tap];
+
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(keyboardWillChangeFrame:)
+                                                 name:UIKeyboardWillChangeFrameNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(keyboardWillHide:)
+                                                 name:UIKeyboardWillHideNotification
+                                               object:nil];
+}
+
+- (void)dismissKeyboard {
+    [self.view endEditing:YES];
+}
+
+/** 键盘弹出时，若遮挡了主按钮则整体上移 */
+- (void)keyboardWillChangeFrame:(NSNotification *)notification {
+    CGRect keyboardFrame = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
+    // 根视图铺满整个窗口，按钮 frame 与屏幕坐标一致，直接比较即可（避免受当前 transform 影响）
+    // 主按钮底部再留 20pt 间距
+    CGFloat contentBottom = CGRectGetMaxY(self.registerButton.frame) + 20;
+    CGFloat overlap = contentBottom - CGRectGetMinY(keyboardFrame);
+
+    CGAffineTransform target = overlap > 0 ? CGAffineTransformMakeTranslation(0, -overlap) : CGAffineTransformIdentity;
+    [self animateViewTransform:target withNotification:notification];
+}
+
+- (void)keyboardWillHide:(NSNotification *)notification {
+    [self animateViewTransform:CGAffineTransformIdentity withNotification:notification];
+}
+
+- (void)animateViewTransform:(CGAffineTransform)transform withNotification:(NSNotification *)notification {
+    if (CGAffineTransformEqualToTransform(self.view.transform, transform)) {
+        return;
+    }
+    NSTimeInterval duration = [notification.userInfo[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
+    [UIView animateWithDuration:duration > 0 ? duration : 0.25 animations:^{
+        self.view.transform = transform;
+    }];
+}
+
+#pragma mark - 账号类型 / 国家
+
+- (void)accountTypeChanged:(UISegmentedControl *)sender {
+    self.accountType = (RegisterAccountType)sender.selectedSegmentIndex;
+    [self updateAccountFieldForAccountType];
+}
+
+- (void)updateAccountFieldForAccountType {
+    if (self.accountType == RegisterAccountTypeEmail) {
+        self.accountTextField.placeholder = @"请输入邮箱";
+        self.accountTextField.keyboardType = UIKeyboardTypeEmailAddress;
+        self.accountTextField.textContentType = UITextContentTypeEmailAddress;
+    } else {
+        self.accountTextField.placeholder = @"请输入手机号";
+        self.accountTextField.keyboardType = UIKeyboardTypePhonePad;
+        self.accountTextField.textContentType = UITextContentTypeTelephoneNumber;
+    }
+    // 切换键盘类型后需要 reload 才能立即生效
+    if (self.accountTextField.isFirstResponder) {
+        [self.accountTextField reloadInputViews];
+    }
+}
+
+- (void)updateCountryButtonTitle {
+    NSString *title = [NSString stringWithFormat:@"%@  ▾", self.selectedCountry.displayText];
+    [self.countryButton setTitle:title forState:UIControlStateNormal];
+}
+
+- (void)countryButtonTapped:(UIButton *)sender {
+    CountryPickerViewController *pickerVC = [[CountryPickerViewController alloc] init];
+    pickerVC.selectedCountry = self.selectedCountry;
+    __weak typeof(self) weakSelf = self;
+    pickerVC.didSelectCountry = ^(CountryModel *country) {
+        weakSelf.selectedCountry = country;
+        [weakSelf updateCountryButtonTitle];
+    };
+    UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:pickerVC];
+    [self presentViewController:navController animated:YES completion:nil];
+}
+
+- (BOOL)isValidEmail:(NSString *)email {
+    NSString *pattern = @"^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$";
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"SELF MATCHES %@", pattern];
+    return [predicate evaluateWithObject:email];
+}
+
+/** 校验国家与账号输入，通过返回 YES */
+- (BOOL)validateAccountInput {
+    if (self.selectedCountry.countryCode.length == 0) {
+        [UIHelper showAlertInViewController:self title:@"提示" message:@"请选择国家/地区"];
+        return NO;
+    }
+
+    NSString *account = [self.accountTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    BOOL isEmail = (self.accountType == RegisterAccountTypeEmail);
+    if (account.length == 0) {
+        [UIHelper showAlertInViewController:self title:@"提示" message:isEmail ? @"请输入邮箱" : @"请输入手机号"];
+        return NO;
+    }
+    if (isEmail && ![self isValidEmail:account]) {
+        [UIHelper showAlertInViewController:self title:@"提示" message:@"邮箱格式不正确"];
+        return NO;
+    }
+    return YES;
+}
+
+#pragma mark - 验证码
+
 - (void)getVerifyCodeButtonTapped:(UIButton *)sender {
-    NSString *countryCode = [self.countryCodeTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-    NSString *phoneNumber = [self.phoneNumberTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-    
-    // 输入验证
-    if (countryCode.length == 0) {
-        [UIHelper showAlertInViewController:self title:@"提示" message:@"请输入国家码"];
+    if (![self validateAccountInput]) {
         return;
     }
-    
-    if (phoneNumber.length == 0) {
-        [UIHelper showAlertInViewController:self title:@"提示" message:@"请输入手机号"];
-        return;
-    }
-    
-    // 获取region
-    NSString *region = [[ThingSmartUser sharedInstance] getDefaultRegionWithCountryCode:countryCode];
+
+    NSString *countryCode = self.selectedCountry.countryCode;
+    NSString *account = [self.accountTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    BOOL isEmail = (self.accountType == RegisterAccountTypeEmail);
+
+    // 邮箱不需要 region，手机号取国家码对应的默认 region
+    NSString *region = isEmail ? nil : [[AuthService sharedInstance] getDefaultRegionWithCountryCode:countryCode];
     
     // 禁用按钮，开始倒计时
     self.getVerifyCodeButton.enabled = NO;
@@ -186,10 +331,10 @@
     [self updateGetVerifyCodeButtonTitle];
     
     // 调用获取验证码服务
-    [[AuthService sharedInstance] sendVerifyCodeWithUserName:phoneNumber
+    [[AuthService sharedInstance] sendVerifyCodeWithUserName:account
                                                       region:region
                                                  countryCode:countryCode
-                                                        type:1
+                                                        type:AuthVerifyCodeTypeRegister
                                                      success:^{
         // 获取验证码成功
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -229,22 +374,18 @@
     [self.getVerifyCodeButton setTitle:title forState:UIControlStateNormal];
 }
 
+#pragma mark - 注册
+
 - (void)registerButtonTapped:(UIButton *)sender {
-    NSString *countryCode = [self.countryCodeTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-    NSString *phoneNumber = [self.phoneNumberTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+    if (![self validateAccountInput]) {
+        return;
+    }
+
+    NSString *countryCode = self.selectedCountry.countryCode;
+    NSString *account = [self.accountTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     NSString *password = [self.passwordTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
     NSString *code = [self.verifyCodeTextField.text stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
-    
-    // 输入验证
-    if (countryCode.length == 0) {
-        [UIHelper showAlertInViewController:self title:@"提示" message:@"请输入国家码"];
-        return;
-    }
-    
-    if (phoneNumber.length == 0) {
-        [UIHelper showAlertInViewController:self title:@"提示" message:@"请输入手机号"];
-        return;
-    }
+    BOOL isEmail = (self.accountType == RegisterAccountTypeEmail);
     
     if (code.length == 0) {
         [UIHelper showAlertInViewController:self title:@"提示" message:@"请输入验证码"];
@@ -259,30 +400,48 @@
     // 禁用按钮，防止重复点击
     self.registerButton.enabled = NO;
     [self.registerButton setTitle:@"注册中..." forState:UIControlStateNormal];
-    
-    // 调用注册服务
-    [[AuthService sharedInstance] registerByPhone:countryCode
-                                      phoneNumber:phoneNumber
-                                         password:password
-                                             code:code
-                                          success:^{
+
+    __weak typeof(self) weakSelf = self;
+    void (^successBlock)(void) = ^{
         // 注册成功
         dispatch_async(dispatch_get_main_queue(), ^{
-            self.registerButton.enabled = YES;
-            [self.registerButton setTitle:@"注册" forState:UIControlStateNormal];
-            [UIHelper showAlertInViewController:self title:@"成功" message:@"注册成功" completion:^{
-                [self dismissViewControllerAnimated:YES completion:nil];
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (!strongSelf) return;
+            strongSelf.registerButton.enabled = YES;
+            [strongSelf.registerButton setTitle:@"注册" forState:UIControlStateNormal];
+            [UIHelper showAlertInViewController:strongSelf title:@"成功" message:@"注册成功" completion:^{
+                [strongSelf dismissViewControllerAnimated:YES completion:nil];
             }];
         });
-    } failure:^(NSError *error) {
+    };
+    void (^failureBlock)(NSError *) = ^(NSError *error) {
         // 注册失败
         dispatch_async(dispatch_get_main_queue(), ^{
-            self.registerButton.enabled = YES;
-            [self.registerButton setTitle:@"注册" forState:UIControlStateNormal];
+            __strong typeof(weakSelf) strongSelf = weakSelf;
+            if (!strongSelf) return;
+            strongSelf.registerButton.enabled = YES;
+            [strongSelf.registerButton setTitle:@"注册" forState:UIControlStateNormal];
             NSString *errorMessage = error.localizedDescription ?: @"注册失败，请重试";
-            [UIHelper showAlertInViewController:self title:@"注册失败" message:errorMessage];
+            [UIHelper showAlertInViewController:strongSelf title:@"注册失败" message:errorMessage];
         });
-    }];
+    };
+    
+    // 调用注册服务
+    if (isEmail) {
+        [[AuthService sharedInstance] registerByEmail:countryCode
+                                                email:account
+                                             password:password
+                                                 code:code
+                                              success:successBlock
+                                              failure:failureBlock];
+    } else {
+        [[AuthService sharedInstance] registerByPhone:countryCode
+                                          phoneNumber:account
+                                             password:password
+                                                 code:code
+                                              success:successBlock
+                                              failure:failureBlock];
+    }
 }
 
 - (void)closeButtonTapped:(UIBarButtonItem *)sender {

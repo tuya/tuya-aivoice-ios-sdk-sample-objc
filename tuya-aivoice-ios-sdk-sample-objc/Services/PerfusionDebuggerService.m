@@ -12,6 +12,8 @@
 
 /// 灌流音频目录，需与底层 ThingMicrophoneAudioInput 约定的路径保持一致。
 static NSString *const kPerfusionAudioDirectoryRelativePath = @"voiceRecord/automaticTest/audioFiles";
+/// 参考答案目录，仅本地评测使用，底层不感知。
+static NSString *const kPerfusionReferenceDirectoryRelativePath = @"voiceRecord/automaticTest/references";
 /// 底层回调 perfusionDataEndWith: 时携带的文件名字段。
 static NSString *const kPerfusionEndFileNameKey = @"fileName";
 
@@ -198,6 +200,94 @@ ThingRegisterAPIAnnotation(ThingAIBudsDebuggerProtocol, PerfusionDebuggerProvide
     NSString *path = [[self audioFilesDirectory] stringByAppendingPathComponent:fileName];
     NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:path error:nil];
     return attributes ? [attributes fileSize] : 0;
+}
+
++ (PerfusionAudioFileInfo *)audioFileInfoWithFileName:(NSString *)fileName {
+    if (fileName.length == 0) return [PerfusionAudioFileInfo infoAtPath:nil];
+    NSString *path = [[self audioFilesDirectory] stringByAppendingPathComponent:fileName];
+    return [PerfusionAudioFileInfo infoAtPath:path];
+}
+
+#pragma mark - 参考答案文本管理
+
++ (NSString *)referencesDirectory {
+    NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    return [documents stringByAppendingPathComponent:kPerfusionReferenceDirectoryRelativePath];
+}
+
++ (BOOL)ensureReferencesDirectory {
+    NSString *directory = [self referencesDirectory];
+    NSFileManager *manager = NSFileManager.defaultManager;
+    if ([manager fileExistsAtPath:directory]) return YES;
+    return [manager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
+}
+
++ (NSArray<NSString *> *)availableReferenceFileNames {
+    [self ensureReferencesDirectory];
+    NSArray<NSString *> *contents = [NSFileManager.defaultManager contentsOfDirectoryAtPath:[self referencesDirectory]
+                                                                                     error:nil];
+    NSMutableArray<NSString *> *files = [NSMutableArray array];
+    for (NSString *name in contents) {
+        if ([name.lowercaseString hasSuffix:@".txt"]) [files addObject:name];
+    }
+    [files sortUsingSelector:@selector(compare:)];
+    return files;
+}
+
++ (nullable NSString *)importReferenceFileFromURL:(NSURL *)url error:(NSError **)error {
+    if (!url) {
+        if (error) *error = [NSError errorWithDomain:@"Perfusion" code:-1 userInfo:@{NSLocalizedDescriptionKey: @"文件地址为空"}];
+        return nil;
+    }
+    if (![self ensureReferencesDirectory]) {
+        if (error) *error = [NSError errorWithDomain:@"Perfusion" code:-2 userInfo:@{NSLocalizedDescriptionKey: @"参考答案目录创建失败"}];
+        return nil;
+    }
+
+    BOOL scoped = [url startAccessingSecurityScopedResource];
+    NSData *data = [NSData dataWithContentsOfURL:url options:NSDataReadingMappedIfSafe error:error];
+    if (scoped) [url stopAccessingSecurityScopedResource];
+    if (!data) return nil;
+
+    NSString *fileName = url.lastPathComponent ?: @"reference.txt";
+    NSString *base = fileName.stringByDeletingPathExtension;
+    NSString *extension = fileName.pathExtension.length > 0 ? fileName.pathExtension : @"txt";
+    NSString *directory = [self referencesDirectory];
+
+    // 与灌流音频一致：内容相同的同名文件直接复用，避免目录里堆副本。
+    NSString *existing = [directory stringByAppendingPathComponent:fileName];
+    NSDictionary *attributes = [NSFileManager.defaultManager attributesOfItemAtPath:existing error:nil];
+    if (attributes && [attributes fileSize] == data.length) return fileName;
+
+    NSString *candidate = fileName;
+    NSUInteger index = 1;
+    while ([NSFileManager.defaultManager fileExistsAtPath:[directory stringByAppendingPathComponent:candidate]]) {
+        candidate = [NSString stringWithFormat:@"%@_%lu.%@", base, (unsigned long)index++, extension];
+    }
+
+    NSString *destination = [directory stringByAppendingPathComponent:candidate];
+    if (![data writeToFile:destination options:NSDataWritingAtomic error:error]) return nil;
+    return candidate;
+}
+
++ (nullable NSString *)referenceTextWithFileName:(NSString *)fileName {
+    if (fileName.length == 0) return nil;
+    NSString *path = [[self referencesDirectory] stringByAppendingPathComponent:fileName];
+    NSError *error = nil;
+    NSString *text = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:&error];
+    if (text) return text;
+    // 参考答案常来自不同来源，UTF-8 读失败时按系统猜测编码兜底。
+    NSData *data = [NSData dataWithContentsOfFile:path];
+    if (!data) return nil;
+    NSString *fallback = nil;
+    [NSString stringEncodingForData:data encodingOptions:nil convertedString:&fallback usedLossyConversion:nil];
+    return fallback;
+}
+
++ (BOOL)removeReferenceFileNamed:(NSString *)fileName error:(NSError **)error {
+    if (fileName.length == 0) return NO;
+    NSString *path = [[self referencesDirectory] stringByAppendingPathComponent:fileName];
+    return [NSFileManager.defaultManager removeItemAtPath:path error:error];
 }
 
 @end

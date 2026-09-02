@@ -10,6 +10,7 @@
 //
 
 #import <Foundation/Foundation.h>
+#import "PerfusionAudioFileInfo.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -73,6 +74,26 @@ typedef void (^PerfusionDidEndHandler)(NSString *_Nullable fileName);
 
 /// 灌流目录内指定文件的字节大小；文件不存在返回 0。
 + (unsigned long long)fileSizeOfAudioFileNamed:(NSString *)fileName;
+
+/// 解析灌流目录内指定音频的格式；无法解析时 parsed 为 NO。
++ (PerfusionAudioFileInfo *)audioFileInfoWithFileName:(NSString *)fileName;
+
+#pragma mark - 参考答案文本管理
+
+/// 参考答案目录：Documents/voiceRecord/automaticTest/references。
++ (NSString *)referencesDirectory;
+
+/// 参考答案目录内可用的文本文件名（.txt，按名称升序）。
++ (NSArray<NSString *> *)availableReferenceFileNames;
+
+/// 把外部文本拷贝进参考答案目录，返回落地后的文件名；内容相同的同名文件会直接复用。
++ (nullable NSString *)importReferenceFileFromURL:(NSURL *)url error:(NSError **)error;
+
+/// 读取参考答案文本内容；失败返回 nil。
++ (nullable NSString *)referenceTextWithFileName:(NSString *)fileName;
+
+/// 删除参考答案目录内的指定文件。
++ (BOOL)removeReferenceFileNamed:(NSString *)fileName error:(NSError **)error;
 
 @end
 

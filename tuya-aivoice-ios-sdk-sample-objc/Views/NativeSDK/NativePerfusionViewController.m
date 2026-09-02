@@ -6,6 +6,8 @@
 #import "NativePerfusionViewController.h"
 #import "NativeAudioService.h"
 #import "PerfusionDebuggerService.h"
+#import "PerfusionWERCalculator.h"
+#import "PerfusionReportBuilder.h"
 #import <AVFAudio/AVFAudio.h>
 #import <ThingAudioRecordInterface/ThingAudioRecordInterface.h>
 
@@ -39,12 +41,23 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     return languages;
 }
 
+/// 文件选择器当前的用途，回调里据此分流。
+typedef NS_ENUM(NSInteger, NativePerfusionPickerPurpose) {
+    NativePerfusionPickerPurposeAudio = 0,
+    NativePerfusionPickerPurposeReference,
+};
+
 @interface NativePerfusionViewController () <ThingAudioRecordManagerDelegate,
                                             UIDocumentPickerDelegate>
 
 #pragma mark 配置
 /// 当前选中的灌流音频文件名（位于灌流目录下）。
 @property (nonatomic, copy, nullable) NSString *selectedFileName;
+/// 当前选中的参考答案文件名（位于参考答案目录下）。
+@property (nonatomic, copy, nullable) NSString *selectedReferenceFileName;
+/// 参考答案原文，选中文件后读入。
+@property (nonatomic, copy, nullable) NSString *referenceText;
+@property (nonatomic, assign) NativePerfusionPickerPurpose pickerPurpose;
 @property (nonatomic, copy) NSString *selectedOriginalLanguage;
 @property (nonatomic, copy) NSString *selectedTargetLanguage;
 
@@ -53,7 +66,13 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
 @property (nonatomic, strong) UIStackView *contentStack;
 @property (nonatomic, strong) UIButton *fileButton;
 @property (nonatomic, strong) UIButton *historyButton;
+@property (nonatomic, strong) UIButton *referenceButton;
+@property (nonatomic, strong) UIButton *referenceHistoryButton;
+@property (nonatomic, strong) UILabel *referenceDetailLabel;
+@property (nonatomic, strong) UILabel *werSummaryLabel;
+@property (nonatomic, strong) UIButton *exportReportButton;
 @property (nonatomic, strong) UILabel *fileDetailLabel;
+@property (nonatomic, strong) UILabel *audioFormatLabel;
 @property (nonatomic, strong) UILabel *providerLabel;
 @property (nonatomic, strong) UISwitch *asrSwitch;
 @property (nonatomic, strong) UISwitch *translateSwitch;
@@ -94,6 +113,10 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
 @property (nonatomic, assign) NSUInteger ttsCallbackCount;
 /// 最近一次结果文本，供复制按钮使用。
 @property (nonatomic, copy, nullable) NSString *lastResultText;
+/// 最近一次评估结果，供导出报告使用。
+@property (nonatomic, strong, nullable) PerfusionWERResult *lastWERResult;
+@property (nonatomic, copy, nullable) NSArray<PerfusionWERLineResult *> *lastLineResults;
+@property (nonatomic, strong, nullable) PerfusionReportInput *lastReportInput;
 
 @end
 
@@ -121,6 +144,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     [self setupUI];
     [self bindRecordListener];
     [self refreshFileState];
+    [self refreshReferenceState];
     [self refreshProviderState];
     [self resetProcessViews];
     [self updateControls];
@@ -129,6 +153,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     [self refreshFileState];
+    [self refreshReferenceState];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -189,11 +214,32 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     self.providerLabel.numberOfLines = 0;
     self.providerLabel.font = [UIFont systemFontOfSize:12];
 
+    self.audioFormatLabel = [self bodyLabel];
+    self.audioFormatLabel.numberOfLines = 0;
+    self.audioFormatLabel.font = [UIFont systemFontOfSize:12.5 weight:UIFontWeightMedium];
+
     UIStackView *fileStack = [self verticalStack];
     [fileStack addArrangedSubview:[self horizontalStackWithViews:@[self.fileButton, self.historyButton]]];
+    [fileStack addArrangedSubview:self.audioFormatLabel];
     [fileStack addArrangedSubview:self.fileDetailLabel];
     [fileStack addArrangedSubview:self.providerLabel];
     [self.contentStack addArrangedSubview:[self cardWithTitle:@"灌流音频" content:fileStack]];
+
+    // 参考答案：用于计算 WER，未选择时只导出识别结果
+    self.referenceButton = [self actionButtonWithTitle:@"选择参考答案" action:@selector(referenceButtonTapped:)];
+    self.referenceButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    self.referenceHistoryButton = [self actionButtonWithTitle:@"已导入" action:@selector(referenceHistoryButtonTapped:)];
+    [self.referenceHistoryButton.widthAnchor constraintEqualToConstant:84].active = YES;
+
+    self.referenceDetailLabel = [self bodyLabel];
+    self.referenceDetailLabel.numberOfLines = 0;
+    self.referenceDetailLabel.textColor = UIColor.secondaryLabelColor;
+    self.referenceDetailLabel.font = [UIFont systemFontOfSize:12];
+
+    UIStackView *referenceStack = [self verticalStack];
+    [referenceStack addArrangedSubview:[self horizontalStackWithViews:@[self.referenceButton, self.referenceHistoryButton]]];
+    [referenceStack addArrangedSubview:self.referenceDetailLabel];
+    [self.contentStack addArrangedSubview:[self cardWithTitle:@"参考答案（WER 标准）" content:referenceStack]];
 
     // 处理能力
     self.asrSwitch = [[UISwitch alloc] init];
@@ -248,12 +294,24 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     [self.contentStack addArrangedSubview:[self cardWithTitle:@"实时翻译" content:self.translateTextView]];
 
     // 灌流结果
+    self.werSummaryLabel = [self bodyLabel];
+    self.werSummaryLabel.numberOfLines = 0;
+    self.werSummaryLabel.font = [UIFont monospacedDigitSystemFontOfSize:15 weight:UIFontWeightSemibold];
+    self.werSummaryLabel.textColor = UIColor.secondaryLabelColor;
+    self.werSummaryLabel.text = @"WER：完成一次灌流后计算";
+
     self.resultTextView = [self readonlyTextViewWithPlaceholder:@"灌流结束后在此展示导出结果" height:200];
     self.resultTextView.font = [UIFont monospacedSystemFontOfSize:12 weight:UIFontWeightRegular];
     self.resultCopyButton = [self actionButtonWithTitle:@"复制结果" action:@selector(resultCopyButtonTapped:)];
+    self.exportReportButton = [self primaryButtonWithTitle:@"导出测试报告" action:@selector(exportReportButtonTapped:)];
+    UIStackView *resultButtonRow = [self horizontalStackWithViews:@[self.resultCopyButton, self.exportReportButton]];
+    resultButtonRow.distribution = UIStackViewDistributionFillEqually;
+
     UIStackView *resultStack = [self verticalStack];
+    [resultStack addArrangedSubview:self.werSummaryLabel];
+    [resultStack addArrangedSubview:[self separatorLine]];
     [resultStack addArrangedSubview:self.resultTextView];
-    [resultStack addArrangedSubview:self.resultCopyButton];
+    [resultStack addArrangedSubview:resultButtonRow];
     [self.contentStack addArrangedSubview:[self cardWithTitle:@"灌流结果" content:resultStack]];
 
     self.logTextView = [self readonlyTextViewWithPlaceholder:@"SDK 事件日志" height:180];
@@ -405,13 +463,30 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     [self.fileButton setTitle:self.selectedFileName.length > 0 ? self.selectedFileName : @"选择文件"
                      forState:UIControlStateNormal];
 
+    // 底层把文件内容当成 16k/16bit 单声道 PCM 直接替换采集流，格式不符会「灌流在跑但没有 ASR 输出」。
+    if (self.selectedFileName.length > 0) {
+        PerfusionAudioFileInfo *info = [PerfusionDebuggerService audioFileInfoWithFileName:self.selectedFileName];
+        if (info.isRecommended) {
+            self.audioFormatLabel.textColor = UIColor.systemGreenColor;
+            self.audioFormatLabel.text = [NSString stringWithFormat:@"✓ %@", info.summary];
+        } else {
+            self.audioFormatLabel.textColor = info.isDecodable ? UIColor.systemOrangeColor : UIColor.systemRedColor;
+            self.audioFormatLabel.text = [NSString stringWithFormat:@"%@ %@\n%@",
+                                          info.isDecodable ? @"⚠️" : @"✗", info.summary, info.warning ?: @""];
+        }
+    } else {
+        self.audioFormatLabel.textColor = UIColor.secondaryLabelColor;
+        self.audioFormatLabel.text = @"需要 16kHz / 16bit / 单声道的整型 PCM WAV";
+    }
+
     NSMutableString *detail = [NSMutableString string];
     if (self.selectedFileName.length > 0) {
         unsigned long long size = [PerfusionDebuggerService fileSizeOfAudioFileNamed:self.selectedFileName];
         [detail appendFormat:@"文件大小 %.1f KB\n", size / 1024.0];
     }
     [detail appendFormat:@"已导入 %lu 个文件（支持 wav / mp3）\n", (unsigned long)files.count];
-    [detail appendString:@"选中的文件会拷贝到灌流工作目录后再喂给录音链路\n推荐 16kHz 单声道 wav，其它采样率/格式底层可能读不出而回落麦克风"];
+    [detail appendString:@"选中的文件会拷贝到灌流工作目录后再喂给录音链路\n"
+     "格式不符可用 afconvert 转换：afconvert -f WAVE -d LEI16@16000 -c 1 in.wav out.wav"];
     self.fileDetailLabel.text = detail;
 
     [self updateControls];
@@ -435,6 +510,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
 
 /// 选文件：直接拉起系统文件选择器，选中的文件落地到灌流目录后立即设为当前灌流文件。
 - (void)fileButtonTapped:(UIButton *)sender {
+    self.pickerPurpose = NativePerfusionPickerPurposeAudio;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
     // 用 UTI 字符串初始化，兼容 iOS 13。
@@ -491,6 +567,16 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     if (!url) return;
 
     NSError *error = nil;
+    if (self.pickerPurpose == NativePerfusionPickerPurposeReference) {
+        NSString *fileName = [PerfusionDebuggerService importReferenceFileFromURL:url error:&error];
+        if (fileName.length == 0) {
+            [self showFamilyMessageWithTitle:@"参考答案读取失败" message:error.localizedDescription ?: @"未知错误"];
+            return;
+        }
+        [self selectReferenceFileNamed:fileName];
+        return;
+    }
+
     NSString *fileName = [PerfusionDebuggerService importAudioFileFromURL:url error:&error];
     if (fileName.length == 0) {
         [self showFamilyMessageWithTitle:@"文件读取失败" message:error.localizedDescription ?: @"未知错误"];
@@ -500,6 +586,108 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     self.selectedFileName = fileName;
     [self appendLog:[NSString stringWithFormat:@"选择灌流文件 %@", fileName]];
     [self refreshFileState];
+}
+
+#pragma mark - 参考答案选择
+
+/// 选参考答案：拉起文件选择器，选中的 txt 落地到参考答案目录后立即生效。
+- (void)referenceButtonTapped:(UIButton *)sender {
+    self.pickerPurpose = NativePerfusionPickerPurposeReference;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    UIDocumentPickerViewController *picker =
+        [[UIDocumentPickerViewController alloc] initWithDocumentTypes:@[@"public.plain-text", @"public.text", @"public.data"]
+                                                              inMode:UIDocumentPickerModeImport];
+#pragma clang diagnostic pop
+    picker.delegate = self;
+    picker.allowsMultipleSelection = NO;
+    [self presentViewController:picker animated:YES completion:nil];
+}
+
+/// 已导入过的参考答案走这里快速复用，顺带提供删除与「不使用参考答案」。
+- (void)referenceHistoryButtonTapped:(UIButton *)sender {
+    NSArray<NSString *> *files = [PerfusionDebuggerService availableReferenceFileNames];
+    if (files.count == 0) {
+        [self showFamilyMessageWithTitle:@"还没有导入过参考答案" message:@"点击「选择参考答案」从本地挑一个 txt 文件。"];
+        return;
+    }
+
+    NSMutableArray<FamilyUIAction *> *actions = [NSMutableArray array];
+    __weak typeof(self) weakSelf = self;
+    for (NSString *fileName in files) {
+        [actions addObject:[FamilyUIAction actionWithTitle:fileName handler:^{
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            [self selectReferenceFileNamed:fileName];
+        }]];
+    }
+    if (self.selectedReferenceFileName.length > 0) {
+        [actions addObject:[FamilyUIAction actionWithTitle:@"不使用参考答案" handler:^{
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            self.selectedReferenceFileName = nil;
+            self.referenceText = nil;
+            [self appendLog:@"已取消参考答案，本次不计算 WER"];
+            [self refreshReferenceState];
+        }]];
+        NSString *deleting = self.selectedReferenceFileName;
+        [actions addObject:[FamilyUIAction destructiveActionWithTitle:[NSString stringWithFormat:@"删除 %@", deleting]
+                                                             handler:^{
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            NSError *error = nil;
+            if ([PerfusionDebuggerService removeReferenceFileNamed:deleting error:&error]) {
+                [self appendLog:[NSString stringWithFormat:@"删除参考答案 %@", deleting]];
+                self.selectedReferenceFileName = nil;
+                self.referenceText = nil;
+            } else {
+                [self showFamilyMessageWithTitle:@"删除失败" message:error.localizedDescription ?: @""];
+            }
+            [self refreshReferenceState];
+        }]];
+    }
+
+    [self showFamilyActionSheetWithTitle:@"已导入的参考答案" message:nil actions:actions];
+}
+
+- (void)selectReferenceFileNamed:(NSString *)fileName {
+    NSString *text = [PerfusionDebuggerService referenceTextWithFileName:fileName];
+    if (text.length == 0) {
+        [self showFamilyMessageWithTitle:@"参考答案为空" message:@"文件内容读取为空，请确认是 UTF-8 文本。"];
+        return;
+    }
+    self.selectedReferenceFileName = fileName;
+    self.referenceText = text;
+    [self appendLog:[NSString stringWithFormat:@"选择参考答案 %@", fileName]];
+    [self refreshReferenceState];
+}
+
+- (void)refreshReferenceState {
+    NSArray<NSString *> *files = [PerfusionDebuggerService availableReferenceFileNames];
+    // 选中的文件被删掉时回落到空。
+    if (self.selectedReferenceFileName.length > 0 && ![files containsObject:self.selectedReferenceFileName]) {
+        self.selectedReferenceFileName = nil;
+        self.referenceText = nil;
+    }
+
+    [self.referenceButton setTitle:self.selectedReferenceFileName.length > 0 ? self.selectedReferenceFileName : @"选择参考答案"
+                          forState:UIControlStateNormal];
+
+    NSMutableString *detail = [NSMutableString string];
+    if (self.referenceText.length > 0) {
+        NSArray<NSString *> *lines = [PerfusionWERCalculator normalizedLinesFromReferenceText:self.referenceText];
+        NSString *normalized = [PerfusionWERCalculator normalizeText:self.referenceText];
+        NSUInteger words = normalized.length > 0 ? [normalized componentsSeparatedByString:@" "].count : 0;
+        [detail appendFormat:@"归一化后 %lu 词 / %lu 行，作为 WER 的分母 N\n",
+         (unsigned long)words, (unsigned long)lines.count];
+        [detail appendString:@"逐句对比按行切分，建议参考答案每行一句、与音频停顿一致\n"];
+    } else {
+        [detail appendString:@"未选择参考答案，本次只导出识别结果、不计算 WER\n"];
+    }
+    [detail appendFormat:@"已导入 %lu 份参考答案（txt，UTF-8）", (unsigned long)files.count];
+    self.referenceDetailLabel.text = detail;
+
+    [self updateControls];
 }
 
 #pragma mark - 语言选择
@@ -579,7 +767,39 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     [self beginPerfusion];
 }
 
+/// 开始前校验音频格式：底层只吃整型 PCM，格式不符会「灌流在跑但没有任何 ASR 输出」。
 - (void)beginPerfusion {
+    PerfusionAudioFileInfo *info = [PerfusionDebuggerService audioFileInfoWithFileName:self.selectedFileName];
+    NSString *convertHint = @"\n\n可用 macOS 自带命令转换：\nafconvert -f WAVE -d LEI16@16000 -c 1 输入.wav 输出.wav";
+
+    if (!info.isDecodable) {
+        [self appendLog:[NSString stringWithFormat:@"音频格式不支持：%@", info.summary]];
+        [self showFamilyMessageWithTitle:@"音频格式不支持"
+                                message:[NSString stringWithFormat:@"%@\n\n当前文件：%@%@",
+                                         info.warning ?: @"底层只支持整型 PCM 的 WAV。",
+                                         info.summary, convertHint]];
+        return;
+    }
+    if (!info.isRecommended) {
+        __weak typeof(self) weakSelf = self;
+        [self showFamilyConfirmationWithTitle:@"音频参数与链路不一致"
+                                     message:[NSString stringWithFormat:@"当前文件：%@\n\n%@%@",
+                                              info.summary, info.warning ?: @"", convertHint]
+                                confirmTitle:@"仍然开始"
+                                 destructive:NO
+                                     confirm:^{
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            [self appendLog:[NSString stringWithFormat:@"音频参数不匹配仍继续：%@", info.summary]];
+            [self performPerfusion];
+        }];
+        return;
+    }
+    [self appendLog:[NSString stringWithFormat:@"音频格式校验通过：%@", info.summary]];
+    [self performPerfusion];
+}
+
+- (void)performPerfusion {
     PerfusionDebuggerService *service = [PerfusionDebuggerService sharedInstance];
     if (![service registerProvider]) {
         [self showFamilyMessageWithTitle:@"灌流不可用"
@@ -842,6 +1062,9 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
 }
 
 - (void)resetProcessViews {
+    self.lastWERResult = nil;
+    self.lastLineResults = nil;
+    [self refreshWERSummary];
     [self.asrTexts removeAllObjects];
     [self.asrOrder removeAllObjects];
     [self.translateTexts removeAllObjects];
@@ -875,41 +1098,112 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     service.perfusionEnabled = NO;
     service.didEndHandler = nil;
 
-    NSString *asrText = [self joinedTextWithOrder:self.asrOrder texts:self.asrTexts];
-    NSString *translateText = [self joinedTextWithOrder:self.translateOrder texts:self.translateTexts];
-    NSTimeInterval elapsed = self.startDate ? [NSDate.date timeIntervalSinceDate:self.startDate] : 0;
+    NSArray<NSString *> *asrSentences = [self sentencesWithOrder:self.asrOrder texts:self.asrTexts];
+    NSArray<NSString *> *translateSentences = [self sentencesWithOrder:self.translateOrder texts:self.translateTexts];
 
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    formatter.dateFormat = @"yyyy-MM-dd HH:mm:ss";
+    PerfusionReportInput *input = [[PerfusionReportInput alloc] init];
+    input.audioFileName = self.runningFileName;
+    input.referenceFileName = self.selectedReferenceFileName;
+    input.referenceText = self.referenceText;
+    input.asrSentences = asrSentences;
+    input.translateSentences = translateSentences;
+    input.startDate = self.startDate;
+    input.endDate = NSDate.date;
+    input.recordId = self.currentRecordId;
+    input.finishReason = error ? [NSString stringWithFormat:@"%@（%@）", reason ?: @"-",
+                                  error.localizedDescription ?: @"错误"] : (reason ?: @"-");
+    input.asrEnabled = self.asrSwitch.isOn;
+    input.translateEnabled = self.translateSwitch.isOn;
+    input.ttsEnabled = self.ttsSwitch.isOn;
+    input.originalLanguage = [self displayNameForLanguageCode:self.selectedOriginalLanguage];
+    input.targetLanguage = [self displayNameForLanguageCode:self.selectedTargetLanguage];
+    input.configFetchCount = service.configFetchCount;
+    input.ttsCallbackCount = self.ttsCallbackCount;
 
-    NSMutableString *result = [NSMutableString string];
-    [result appendFormat:@"结束原因：%@\n", reason ?: @"-"];
-    if (error) [result appendFormat:@"错误：%@\n", error.localizedDescription ?: @"-"];
-    [result appendFormat:@"灌流文件：%@\n", self.runningFileName ?: @"-"];
-    [result appendFormat:@"recordId：%@\n", self.currentRecordId ?: @"-"];
-    [result appendFormat:@"开始时间：%@\n", self.startDate ? [formatter stringFromDate:self.startDate] : @"-"];
-    [result appendFormat:@"耗时：%.2f s\n", elapsed];
-    [result appendFormat:@"能力开关：ASR=%@ 翻译=%@ TTS=%@\n",
-     self.asrSwitch.isOn ? @"开" : @"关",
-     self.translateSwitch.isOn ? @"开" : @"关",
-     self.ttsSwitch.isOn ? @"开" : @"关"];
-    [result appendFormat:@"语言：%@ -> %@\n",
-     [self displayNameForLanguageCode:self.selectedOriginalLanguage],
-     [self displayNameForLanguageCode:self.selectedTargetLanguage]];
-    [result appendFormat:@"ASR 分句 %lu 句，共 %lu 字\n", (unsigned long)self.asrOrder.count, (unsigned long)asrText.length];
-    [result appendFormat:@"翻译分句 %lu 句，共 %lu 字\n", (unsigned long)self.translateOrder.count, (unsigned long)translateText.length];
-    [result appendFormat:@"TTS 回调 %lu 次\n", (unsigned long)self.ttsCallbackCount];
-    [result appendFormat:@"底层回读灌流配置 %lu 次%@\n",
-     (unsigned long)service.configFetchCount,
-     service.configFetchCount == 0 ? @"（灌流未生效，录的是真实麦克风）" : @""];
-    [result appendFormat:@"\n=== ASR 全文 ===\n%@\n", asrText.length > 0 ? asrText : @"(空)"];
-    [result appendFormat:@"\n=== 翻译全文 ===\n%@", translateText.length > 0 ? translateText : @"(空)"];
+    // 有参考答案才评估 WER；口径与 ASR_WER/WER.py 一致。
+    PerfusionWERResult *werResult = nil;
+    NSArray<PerfusionWERLineResult *> *lineResults = nil;
+    if (self.referenceText.length > 0) {
+        NSString *hypothesis = [asrSentences componentsJoinedByString:@" "];
+        werResult = [PerfusionWERCalculator evaluateReference:self.referenceText hypothesis:hypothesis];
+        NSArray<NSString *> *referenceLines = [PerfusionWERCalculator normalizedLinesFromReferenceText:self.referenceText];
+        if (referenceLines.count > 0) {
+            lineResults = [PerfusionWERCalculator evaluateReferenceLines:referenceLines
+                                                     hypothesisSegments:asrSentences];
+        }
+        [self appendLog:[NSString stringWithFormat:@"WER 计算完成 准确率=%.2f%% WER=%.2f%% N=%lu S=%lu D=%lu I=%lu",
+                         werResult.accuracy * 100, werResult.wer * 100,
+                         (unsigned long)werResult.referenceCount, (unsigned long)werResult.substitutions,
+                         (unsigned long)werResult.deletions, (unsigned long)werResult.insertions]];
+    }
 
-    self.lastResultText = result;
+    self.lastReportInput = input;
+    self.lastWERResult = werResult;
+    self.lastLineResults = lineResults;
+    self.lastResultText = [PerfusionReportBuilder textSummaryWithInput:input werResult:werResult];
+
     self.resultTextView.textColor = UIColor.labelColor;
-    self.resultTextView.text = result;
+    self.resultTextView.text = self.lastResultText;
+    [self refreshWERSummary];
     [self appendLog:[NSString stringWithFormat:@"灌流结束，结果已导出（%@）", reason ?: @"-"]];
     [self updateControls];
+}
+
+/// 把按 key 聚合的分句还原成有序数组。
+- (NSArray<NSString *> *)sentencesWithOrder:(NSArray<NSString *> *)order
+                                      texts:(NSDictionary<NSString *, NSString *> *)texts {
+    NSMutableArray<NSString *> *sentences = [NSMutableArray array];
+    for (NSString *key in order) {
+        NSString *text = texts[key];
+        if (text.length > 0) [sentences addObject:text];
+    }
+    return sentences;
+}
+
+- (void)refreshWERSummary {
+    PerfusionWERResult *result = self.lastWERResult;
+    if (!result || result.referenceCount == 0) {
+        self.werSummaryLabel.textColor = UIColor.secondaryLabelColor;
+        self.werSummaryLabel.text = self.selectedReferenceFileName.length > 0
+            ? @"WER：参考答案为空，未计算"
+            : @"WER：未选择参考答案，未计算";
+        return;
+    }
+    self.werSummaryLabel.textColor = result.accuracy >= 0.9 ? UIColor.systemGreenColor
+        : (result.accuracy >= 0.7 ? UIColor.systemOrangeColor : UIColor.systemRedColor);
+    self.werSummaryLabel.text = [NSString stringWithFormat:
+        @"准确率 %.2f%%　WER %.2f%%\nN=%lu  S=%lu  D=%lu  I=%lu  命中=%lu",
+        result.accuracy * 100, result.wer * 100,
+        (unsigned long)result.referenceCount, (unsigned long)result.substitutions,
+        (unsigned long)result.deletions, (unsigned long)result.insertions,
+        (unsigned long)result.hits];
+}
+
+#pragma mark - 报告导出
+
+- (void)exportReportButtonTapped:(UIButton *)sender {
+    if (!self.lastReportInput) {
+        [self showFamilyMessageWithTitle:@"暂无结果" message:@"请先完成一次灌流。"];
+        return;
+    }
+
+    NSError *error = nil;
+    NSURL *url = [PerfusionReportBuilder writeReportWithInput:self.lastReportInput
+                                                    werResult:self.lastWERResult
+                                                  lineResults:self.lastLineResults
+                                                        error:&error];
+    if (!url) {
+        [self showFamilyMessageWithTitle:@"报告生成失败" message:error.localizedDescription ?: @"未知错误"];
+        return;
+    }
+    [self appendLog:[NSString stringWithFormat:@"报告已生成 %@", url.lastPathComponent]];
+
+    UIActivityViewController *activity =
+        [[UIActivityViewController alloc] initWithActivityItems:@[url] applicationActivities:nil];
+    // iPad 上必须给出弹出锚点，否则会崩。
+    activity.popoverPresentationController.sourceView = sender;
+    activity.popoverPresentationController.sourceRect = sender.bounds;
+    [self presentViewController:activity animated:YES completion:nil];
 }
 
 - (void)resultCopyButtonTapped:(UIButton *)sender {
@@ -933,6 +1227,8 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     BOOL configEditable = !self.perfusionRunning && !self.operationPending;
     self.fileButton.enabled = configEditable;
     self.historyButton.enabled = configEditable;
+    self.referenceButton.enabled = configEditable;
+    self.referenceHistoryButton.enabled = configEditable;
     self.asrSwitch.enabled = configEditable;
     self.translateSwitch.enabled = configEditable;
     self.ttsSwitch.enabled = configEditable;
@@ -940,6 +1236,8 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kPerfusionLanguages(void
     self.targetLanguageButton.enabled = configEditable;
     self.resultCopyButton.enabled = self.lastResultText.length > 0;
     self.resultCopyButton.alpha = self.resultCopyButton.isEnabled ? 1.0 : 0.4;
+    self.exportReportButton.enabled = (self.lastReportInput != nil);
+    self.exportReportButton.alpha = self.exportReportButton.isEnabled ? 1.0 : 0.4;
 
     if (self.operationPending) {
         self.stateLabel.text = @"处理中…";
