@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tuya AI Voice 对外 Native API · iOS 接入指南</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/styles/github.min.css">
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build/highlight.min.js"></script>
+<style>
+:root{--brand:#FF5A28;--brand-light:#FFF3EE;--brand-dark:#E04E1F;--text:#1A1A2E;--text-secondary:#6B7280;--text-tertiary:#9CA3AF;--bg:#F9FAFB;--card-bg:#FFFFFF;--border:#E5E7EB;--code-bg:#F3F4F6;--sidebar-w:280px;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-lg:0 10px 30px rgba(0,0,0,.10)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.7;font-size:15px}
+#sidebar{position:fixed;top:0;left:0;width:var(--sidebar-w);height:100vh;background:var(--card-bg);border-right:1px solid var(--border);overflow-y:auto;z-index:100;transition:transform .3s}
+#sidebar::-webkit-scrollbar{width:5px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.sidebar-header{padding:24px 20px 20px;border-bottom:1px solid var(--border)}
+.sidebar-header .logo{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.sidebar-header .logo-icon{width:36px;height:36px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand-dark));display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700}
+.sidebar-header h1{font-size:16px;font-weight:700;line-height:1.3}
+.sidebar-header .version{font-size:12px;color:var(--text-tertiary);margin-top:4px}
+.nav-group{padding:12px 0}
+.nav-group-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text-tertiary);padding:0 20px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:7px 20px;font-size:14px;color:var(--text-secondary);cursor:pointer;border-left:3px solid transparent;transition:all .15s;text-decoration:none}
+.nav-item:hover{background:var(--brand-light);color:var(--brand)}
+.nav-item.active{background:var(--brand-light);color:var(--brand);border-left-color:var(--brand);font-weight:600}
+.nav-item .nav-num{font-size:11px;font-weight:700;color:var(--text-tertiary);min-width:22px}
+.nav-item.active .nav-num{color:var(--brand)}
+#main{margin-left:var(--sidebar-w);padding:40px 48px 80px;max-width:920px}
+.page{display:none;animation:fadeIn .3s ease}
+.page.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.page-header{margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid var(--border)}
+.page-header .breadcrumb{font-size:13px;color:var(--text-tertiary);margin-bottom:8px}
+.page-header h2{font-size:28px;font-weight:700;margin-bottom:8px}
+.page-header .subtitle{font-size:15px;color:var(--text-secondary)}
+.card{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:20px}
+.card-title{font-size:18px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title .icon{color:var(--brand);font-size:20px}
+.method{background:var(--card-bg);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;border:1px solid var(--border)}
+.method-header{padding:16px 20px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .15s}
+.method-header:hover{background:var(--bg)}
+.method-header .method-info{flex:1}
+.method-name{font-family:"SF Mono",Monaco,Consolas,monospace;font-size:14px;font-weight:600;color:var(--brand)}
+.method-desc{font-size:13px;color:var(--text-secondary);margin-top:4px}
+.method-chevron{color:var(--text-tertiary);transition:transform .2s;font-size:14px}
+.method.open .method-chevron{transform:rotate(90deg)}
+.method-body{display:none;padding:0 20px 20px;border-top:1px solid var(--border)}
+.method.open .method-body{display:block}
+pre{background:#F8FAFC;color:#1F2937;border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;font-size:13px;line-height:1.6;margin:12px 0;font-family:"SF Mono",Monaco,Consolas,monospace}
+code{font-family:"SF Mono",Monaco,Consolas,monospace;font-size:.88em}
+pre code{font-size:13px;background:none;padding:0;color:inherit;text-shadow:none}
+p code,li code,td code{background:var(--code-bg);padding:2px 6px;border-radius:4px;color:var(--brand-dark)}
+.param-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+.param-table th{text-align:left;padding:8px 12px;background:var(--code-bg);font-weight:600;color:var(--text);border-bottom:2px solid var(--border);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.param-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+.param-table td:first-child{font-family:"SF Mono",Monaco,Consolas,monospace;font-weight:600;color:var(--brand-dark);white-space:nowrap}
+.param-table tr:last-child td{border-bottom:none}
+details{border:1px solid var(--border);border-radius:8px;margin:12px 0;overflow:hidden;background:var(--card-bg)}
+summary{padding:12px 16px;font-weight:600;font-size:14px;cursor:pointer;user-select:none;list-style:none;display:flex;align-items:center;gap:8px;color:var(--text);background:var(--bg)}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸";color:var(--brand);transition:transform .2s;font-size:13px}
+details[open] summary::before{transform:rotate(90deg)}
+details summary:hover{background:var(--brand-light)}
+.detail-content{padding:16px}
+.diagram-container{background:var(--card-bg);border-radius:var(--radius);padding:20px;margin:16px 0;text-align:center;border:1px solid var(--border)}
+.diagram-caption{font-size:13px;color:var(--text-tertiary);margin-top:12px;font-style:italic}
+.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;line-height:1.5}
+.badge-sync{background:#FEF3C7;color:#D97706}
+.badge-async{background:#D1FAE5;color:#059669}
+.callout{border-left:4px solid var(--brand);background:var(--brand-light);padding:14px 18px;border-radius:0 8px 8px 0;margin:16px 0}
+.callout-title{font-weight:700;margin-bottom:4px;font-size:14px}
+.callout p{font-size:14px;color:var(--text-secondary)}
+.callout code{background:rgba(255,90,40,.12);color:var(--brand-dark)}
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin:20px 0}
+.feature-card{background:var(--card-bg);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);cursor:pointer;transition:all .2s;border:1px solid transparent}
+.feature-card:hover{border-color:var(--brand);transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+.feature-card .feature-icon{font-size:28px;margin-bottom:10px}
+.feature-card h4{font-size:15px;font-weight:700;margin-bottom:6px}
+.feature-card p{font-size:13px;color:var(--text-secondary);line-height:1.5}
+.steps{counter-reset:step;margin:20px 0}
+.step{position:relative;padding-left:48px;margin-bottom:24px}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:0;top:0;width:32px;height:32px;border-radius:50%;background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
+.step::after{content:"";position:absolute;left:15px;top:36px;width:2px;height:calc(100% - 36px);background:var(--border)}
+.step:last-child::after{display:none}
+.step h4{font-size:16px;font-weight:600;margin-bottom:8px}
+.step p{font-size:14px;color:var(--text-secondary);margin-bottom:8px}
+.id-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.id-card{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:14px}
+.id-card code{font-weight:700;color:var(--brand);font-size:14px}
+.id-card .id-type{font-size:11px;color:var(--text-tertiary);margin-top:2px}
+.id-card .id-desc{font-size:13px;color:var(--text-secondary);margin-top:6px}
+#sidebar-toggle{display:none;position:fixed;top:16px;left:16px;z-index:200;width:40px;height:40px;border-radius:8px;border:none;background:var(--brand);color:#fff;font-size:20px;cursor:pointer;box-shadow:var(--shadow-lg)}
+@media(max-width:900px){#sidebar{transform:translateX(-100%)}#sidebar.open{transform:none}#sidebar-toggle{display:flex;align-items:center;justify-content:center}#main{margin-left:0;padding:24px 20px 60px}}
+.mermaid{display:flex;justify-content:center}
+</style>
+</head>
+<body>
+<button id="sidebar-toggle">☰</button>
+<nav id="sidebar">
+  <div class="sidebar-header"><div class="logo"><div class="logo-icon">A</div><div><h1>Tuya AI Voice</h1><div class="version">对外 Native API · iOS</div></div></div></div>
+  <div class="nav-group"><div class="nav-group-title">快速开始</div>
+    <a class="nav-item active" data-page="overview"><span class="nav-num">›</span> 概览</a>
+    <a class="nav-item" data-page="quickstart"><span class="nav-num">›</span> 接入指南</a>
+    <a class="nav-item" data-page="conventions"><span class="nav-num">›</span> 基础约定</a>
+  </div>
+  <div class="nav-group"><div class="nav-group-title">核心功能</div>
+    <a class="nav-item" data-page="recording"><span class="nav-num">一</span> 录音</a>
+    <a class="nav-item" data-page="filelist"><span class="nav-num">二</span> 文件列表</a>
+    <a class="nav-item" data-page="filedetail"><span class="nav-num">三</span> 文件详情</a>
+    <a class="nav-item" data-page="processing"><span class="nav-num">四</span> 转写 / 总结 / 翻译</a>
+  </div>
+  <div class="nav-group"><div class="nav-group-title">文件管理</div>
+    <a class="nav-item" data-page="filemanage"><span class="nav-num">五</span> 文件管理</a>
+    <a class="nav-item" data-page="tags"><span class="nav-num">六</span> 标签管理</a>
+    <a class="nav-item" data-page="transfer"><span class="nav-num">七</span> 离线文件传输</a>
+    <a class="nav-item" data-page="import"><span class="nav-num">八</span> 音频导入</a>
+    <a class="nav-item" data-page="cloudsync"><span class="nav-num">九</span> 云同步</a>
+  </div>
+  <div class="nav-group"><div class="nav-group-title">扩展功能</div>
+    <a class="nav-item" data-page="mergeshare"><span class="nav-num">十</span> 合并与分享</a>
+    <a class="nav-item" data-page="translate"><span class="nav-num">十一</span> 文本翻译</a>
+    <a class="nav-item" data-page="device"><span class="nav-num">十二</span> 设备与快捷入口</a>
+    <a class="nav-item" data-page="events"><span class="nav-num">十三</span> 事件监听</a>
+    <a class="nav-item" data-page="enums"><span class="nav-num">十四</span> 枚举参考</a>
+    <a class="nav-item" data-page="errors"><span class="nav-num">十五</span> 错误码参考</a>
+  </div>
+</nav>
+<div id="main">
+<!-- OVERVIEW -->
+<section class="page active" id="page-overview">
+  <div class="page-header"><div class="breadcrumb">首页 / 概览</div><h2>对外 Native API</h2><p class="subtitle">Tuya AI Voice — 录音、转写、翻译、文件管理一体化接口（iOS）</p></div>
+  <div class="card">
+    <h3 class="card-title"><span class="icon">📋</span> SDK 信息</h3>
+    <table class="param-table">
+      <tr><td style="width:160px;color:var(--text-secondary)">入口类</td><td><code>ThingAudioDetectManagerNative</code></td></tr>
+      <tr><td style="color:var(--text-secondary)">获取方式</td><td><code>[ThingAudioDetectManagerNative sharedInstance]</code></td></tr>
+      <tr><td style="color:var(--text-secondary)">协议</td><td><code>ThingAudioDetectManagerNativeProtocol</code></td></tr>
+      <tr><td style="color:var(--text-secondary)">最低系统</td><td>iOS 13.0</td></tr>
+      <tr><td style="color:var(--text-secondary)">头文件</td><td><code>&lt;TUniAudioDetectManager/ThingAudioDetectManagerNative.h&gt;</code></td></tr>
+      <tr><td style="color:var(--text-secondary)">模型依赖</td><td><code>ThingAudioRecordInterface</code></td></tr>
+    </table>
+  </div>
+  <h3 class="card-title" style="margin-top:32px"><span class="icon">🧩</span> 功能模块</h3>
+  <p style="margin-bottom:16px;color:var(--text-secondary)">点击卡片跳转到对应章节</p>
+  <div class="feature-grid">
+    <div class="feature-card" onclick="navTo('recording')"><div class="feature-icon">🎙️</div><h4>录音</h4><p>实时录音、暂停恢复、状态监听、振幅与 ASR 回调</p></div>
+    <div class="feature-card" onclick="navTo('filelist')"><div class="feature-icon">📂</div><h4>文件列表</h4><p>录音文件分页查询、混合搜索（标题/标签/转写内容）</p></div>
+    <div class="feature-card" onclick="navTo('filedetail')"><div class="feature-icon">📄</div><h4>文件详情</h4><p>单条录音元数据、振幅数据、多种处理状态</p></div>
+    <div class="feature-card" onclick="navTo('processing')"><div class="feature-icon">🤖</div><h4>转写 / 总结 / 翻译</h4><p>离线发起转写、总结、翻译任务；实时 ASR 查询</p></div>
+    <div class="feature-card" onclick="navTo('filemanage')"><div class="feature-icon">🗂️</div><h4>文件管理</h4><p>更新元数据、批量删除、标签操作、安全路径</p></div>
+    <div class="feature-card" onclick="navTo('tags')"><div class="feature-icon">🏷️</div><h4>标签管理</h4><p>标签新增、删除、排序、AI 标签与跨端同步</p></div>
+    <div class="feature-card" onclick="navTo('transfer')"><div class="feature-icon">📡</div><h4>离线文件传输</h4><p>从录音硬件下载离线文件，支持 BLE/AP 通道切换</p></div>
+    <div class="feature-card" onclick="navTo('import')"><div class="feature-icon">🎵</div><h4>音频导入</h4><p>从系统文件选择器导入外部音频</p></div>
+    <div class="feature-card" onclick="navTo('cloudsync')"><div class="feature-icon">☁️</div><h4>云同步</h4><p>Note 记录云端上传/下载、同步开关配置</p></div>
+    <div class="feature-card" onclick="navTo('mergeshare')"><div class="feature-icon">🔗</div><h4>合并与分享</h4><p>多条录音合并、生成可分享链接</p></div>
+    <div class="feature-card" onclick="navTo('translate')"><div class="feature-icon">🌐</div><h4>文本翻译</h4><p>独立文本翻译、翻译历史管理</p></div>
+    <div class="feature-card" onclick="navTo('device')"><div class="feature-icon">📱</div><h4>设备与入口</h4><p>蓝牙状态查询、悬浮窗、小组件/快捷指令</p></div>
+    <div class="feature-card" onclick="navTo('events')"><div class="feature-icon">🔔</div><h4>事件监听</h4><p>6 类监听器：录音、离线、导入、同步、合并、设备</p></div>
+  </div>
+</section>
+
+<!-- QUICKSTART -->
+<section class="page" id="page-quickstart">
+  <div class="page-header"><div class="breadcrumb">快速开始 / 接入指南</div><h2>接入指南</h2><p class="subtitle">从零开始接入 Native SDK 的核心步骤</p></div>
+  <div class="callout" style="border-left-color:#DC2626;background:#FEF2F2"><div class="callout-title" style="color:#DC2626">⚠️ 接入前置要求</div><p>在正式接入 Native API 之前，需要先完成 <strong>Tuya 基础 UI 业务包</strong> 的接入流程（包含 SDK 初始化、登录、家庭管理、设备配网等基础能力）。详见：<a href="https://developer.tuya.com/cn/docs/app-development/earPhone?id=Kfb0x0k9kojer" target="_blank" style="color:#DC2626;text-decoration:underline">涂鸦开发者文档 · AI 耳机接入指南</a></p><p style="margin-top:8px">AIVoice Demo 地址：<a href="https://github.com/tuya/tuya-aivoice-ios-sdk-sample-objc" target="_blank" style="color:#DC2626;text-decoration:underline">github.com/tuya/tuya-aivoice-ios-sdk-sample-objc</a></p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart LR;A["1.Podfile 依赖"] --> B["2.初始化 单例"] --> C["3.登录 家庭"] --> D["4.开始录音"] --> E["5.查列表 详情"] --> F["6.转写 翻译"]</div>
+    <p class="diagram-caption">Native SDK 核心接入流程</p>
+  </div>
+  <div class="steps">
+    <div class="step"><h4>添加依赖</h4><p>在 Podfile 中引入 Native SDK 模块：</p><pre><code class="language-ruby">pod 'TUniAudioDetectManager'</code></pre></div>
+    <div class="step"><h4>获取单例</h4><p>线程安全单例，不支持 <code>init</code> / <code>new</code>：</p><pre><code class="language-objc">#import &lt;TUniAudioDetectManager/ThingAudioDetectManagerNative.h&gt;
+
+id&lt;ThingAudioDetectManagerNativeProtocol&gt; manager =
+    [ThingAudioDetectManagerNative sharedInstance];</code></pre></div>
+    <div class="step"><h4>完成登录与家庭初始化</h4><p>涂鸦 SDK 以「家庭」为维度管理设备和权限，录音前需确保用户已登录且至少有一个家庭。</p></div>
+    <div class="step"><h4>开始录音</h4><p>先查询是否有活动任务，避免重复开始；然后配置参数并启动：</p><pre><code class="language-objc">// 查询活动任务
+ThingAudioRecordObject *task = [manager recordTransferTaskWithDeviceId:deviceId];
+
+ThingAudioRecordConfig *config = [[ThingAudioRecordConfig alloc] init];
+config.recordType = ThingAudioRecordTypeMeet;
+config.transferType = ThingAudioRecordTransferTypeRealTime;
+config.needAsr = YES;
+config.needTranslate = YES;
+config.originalLanguage = @"zh";
+config.targetLanguage = @"en";
+
+[manager startAudioRecordingWithDeviceId:deviceId
+                                  config:config
+                                 success:^(ThingAudioRecordObject *task) {
+    NSLog(@"录音开始 recordId=%@", task.recordId);
+} failure:^(NSError *error) {
+    NSLog(@"录音失败 %@", error);
+}];</code></pre></div>
+    <div class="step"><h4>注册监听器接收实时回调</h4><p>按 deviceId 注册，销毁前必须用同一实例移除：</p><pre><code class="language-objc">[manager addRecordListener:self deviceId:deviceId];
+[manager removeRecordListener:self deviceId:deviceId]; // dealloc</code></pre></div>
+    <div class="step"><h4>查询录音列表与详情</h4><p>录音结束后文件入库，可通过列表查询和详情接口获取：</p><pre><code class="language-objc">ThingAudioRecordFilesParams *params = [[ThingAudioRecordFilesParams alloc] init];
+params.orderBy = @(1);  // 按录音时间
+params.asc = @(0);      // 降序
+[manager getRecordTransferResultList:params success:^(NSArray *list) {
+    NSLog(@"共 %lu 条录音", (unsigned long)list.count);
+} failure:^(NSError *error) { ... }];</code></pre></div>
+  </div>
+  <div class="callout"><div class="callout-title">⚠️ 关键提醒</div><p>开始录音前先调用 <code>recordTransferTaskWithDeviceId:</code> 查任务，避免同一设备重复开始。区分 <code>recordId</code>（业务录音 ID）与 <code>fileId</code>（本地文件主键）——详情/分享/下载用前者，转写/总结/删除用后者。</p></div>
+</section>
+
+<!-- CONVENTIONS -->
+<section class="page" id="page-conventions">
+  <div class="page-header"><div class="breadcrumb">快速开始 / 基础约定</div><h2>基础约定</h2><p class="subtitle">SDK 使用前需要了解的类型、ID 和错误处理机制</p></div>
+  <div class="card">
+    <h3 class="card-title"><span class="icon">🔁</span> 回调类型</h3>
+    <table class="param-table"><thead><tr><th>类型</th><th>定义</th><th>含义</th></tr></thead><tbody>
+      <tr><td>Success</td><td><code>void(^)(void)</code></td><td>操作成功，无返回数据</td></tr>
+      <tr><td>Failure</td><td><code>void(^)(NSError *)</code></td><td>操作失败，<code>error.code</code> 为错误码</td></tr>
+    </tbody></table>
+    <p style="margin-top:12px;font-size:13px;color:var(--text-secondary)">标记 <code>nullable</code> 的回调可传 <code>nil</code>。回调线程由底层决定，更新 UI 需切回主线程。</p>
+  </div>
+  <div class="card">
+    <h3 class="card-title"><span class="icon">🔑</span> 关键 ID</h3>
+    <p style="margin-bottom:16px;color:var(--text-secondary)">接入时最容易混淆的 4 个 ID，请务必区分使用场景：</p>
+    <div class="id-grid">
+      <div class="id-card"><code>deviceId</code><div class="id-type">NSString</div><div class="id-desc">录音设备标识。录音控制、监听器注册均按此隔离</div></div>
+      <div class="id-card"><code>recordId</code><div class="id-type">NSString</div><div class="id-desc">业务录音唯一标识。用于详情、分享、标签、云端下载</div></div>
+      <div class="id-card"><code>fileId</code><div class="id-type">long long</div><div class="id-desc">本地文件主键。用于转写、总结、更新、删除</div></div>
+      <div class="id-card"><code>asrId</code><div class="id-type">long long</div><div class="id-desc">实时 ASR 分句 ID。用于查询/更新单句识别结果</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 class="card-title"><span class="icon">⚠️</span> 错误处理</h3>
+    <p>错误域为 <code>ThingAudioDetectManagerNativeErrorDomain</code>。</p>
+    <ul style="margin-top:8px;padding-left:20px;font-size:14px;color:var(--text-secondary)">
+      <li><strong>错误码 1</strong>：底层 <code>ThingModule</code> 服务未注册或不可用</li>
+      <li><strong>其余错误码</strong>：透传底层 SDK 的 <code>NSError</code></li>
+    </ul>
+  </div>
+</section>
+<!-- RECORDING -->
+<section class="page" id="page-recording">
+  <div class="page-header"><div class="breadcrumb">核心功能 / 一、录音</div><h2>录音</h2><p class="subtitle">管理正在进行的录音会话，包含状态、振幅、实时 ASR 等实时事件</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart LR;S(["初始"]) --> A[未开始];A --> B[录音中];B --> C[已暂停];C --> B;B --> D[已结束];C --> D</div>
+    <p class="diagram-caption">录音状态流转</p>
+  </div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">recordTransferTaskWithDeviceId:</div><div class="method-desc">同步查询设备活动录音任务 <span class="badge badge-sync">同步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <p>进入录音页时调用以恢复状态。</p>
+      <pre><code class="language-objc">- (nullable ThingAudioRecordObject *)recordTransferTaskWithDeviceId:(NSString *)deviceId;</code></pre>
+      <details><summary>参数说明</summary><div class="detail-content"><table class="param-table"><thead><tr><th>参数</th><th>类型</th><th>说明</th></tr></thead><tbody><tr><td>deviceId</td><td>NSString</td><td>设备 ID，不能为空</td></tr><tr><td>返回</td><td>ThingAudioRecordObject</td><td>活动任务；无任务或服务不可用时为 nil</td></tr></tbody></table></div></details>
+    </div>
+  </div>
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">startAudioRecordingWithDeviceId:config:success:failure:</div><div class="method-desc">创建并开始录音/实时转写任务 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)startAudioRecordingWithDeviceId:(NSString *)deviceId
+                                 config:(ThingAudioRecordConfig *)config
+                                success:(void(^)(ThingAudioRecordObject *task))success
+                                failure:(ThingAudioDetectNativeFailure)failure;</code></pre>
+      <details><summary>参数说明</summary><div class="detail-content"><table class="param-table"><thead><tr><th>参数</th><th>类型</th><th>说明</th></tr></thead><tbody><tr><td>deviceId</td><td>NSString</td><td>录音设备 ID</td></tr><tr><td>config</td><td>ThingAudioRecordConfig</td><td>录音配置</td></tr><tr><td>success</td><td>block</td><td>成功回调，返回创建后的活动任务</td></tr><tr><td>failure</td><td>block</td><td>失败回调</td></tr></tbody></table></div></details>
+    </div>
+  </div>
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">pause / resume / stopRecordTransferWithDeviceId</div><div class="method-desc">暂停、恢复、结束录音 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)pauseRecordTransferWithDeviceId:(NSString *)deviceId success:... failure:...;
+- (void)resumeRecordTransferWithDeviceId:(NSString *)deviceId success:... failure:...;
+- (void)stopRecordTransferWithDeviceId:(NSString *)deviceId success:... failure:...;</code></pre>
+      <p>停止后数据完成入库。</p>
+    </div>
+  </div>
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">updateParamsWithDeviceId:config:success:failure:</div><div class="method-desc">录音过程中更新语言、翻译、TTS、音源或 3A 配置 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body"><pre><code class="language-objc">- (void)updateParamsWithDeviceId:(NSString *)deviceId
+                          config:(ThingAudioRecordConfig *)config
+                         success:(ThingAudioDetectNativeSuccess)success
+                         failure:(ThingAudioDetectNativeFailure)failure;</code></pre></div>
+  </div>
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">addRecordListener / removeRecordListener</div><div class="method-desc">注册/移除录音事件监听器（按设备隔离）</div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)addRecordListener:(id&lt;ThingAudioRecordManagerDelegate&gt;)listener deviceId:(NSString *)deviceId;
+- (void)removeRecordListener:(id&lt;ThingAudioRecordManagerDelegate&gt;)listener deviceId:(NSString *)deviceId;</code></pre>
+      <div class="callout"><div class="callout-title">监听器使用要点</div><p>监听器由调用方强引用，销毁前用同一实例移除。所有回调保证在主线程，可直接更新 UI。</p></div>
+      <details><summary>回调方法一览</summary><div class="detail-content"><table class="param-table"><thead><tr><th>回调</th><th>参数含义</th><th>触发频率</th></tr></thead><tbody>
+        <tr><td>record:didUpdateStatus:</td><td>含 state、isStarting、isPausing 等</td><td>状态变更时</td></tr>
+        <tr><td>record:didUpdateAmplitude:channel:</td><td>振幅值 + 声道</td><td>约每 200ms 一次</td></tr>
+        <tr><td>record:onProcessResult:</td><td>实时 ASR/翻译结果</td><td>实时转写过程中</td></tr>
+        <tr><td>record:didFinishWithError:</td><td>error 为 nil 表示正常结束</td><td>录音结束时</td></tr>
+        <tr><td>record:onChangeAudioSource:</td><td>音源切换结果</td><td>音源切换时</td></tr>
+        <tr><td>record:audioDetectQuanlityChangeStatus:</td><td>音质检测变化</td><td>音质变化时</td></tr>
+        <tr><td>record:phoneDetectBatteryChangeStatus:</td><td>手机电量变化</td><td>电量变化时</td></tr>
+      </tbody></table></div></details>
+    </div>
+  </div>
+  <details><summary>📦 ThingAudioRecordConfig 完整参数（点击展开）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+    <tr><td>recordType</td><td>ThingAudioRecordType</td><td>录音类型</td></tr><tr><td>transferType</td><td>ThingAudioRecordTransferType</td><td>文件转写或实时转写</td></tr>
+    <tr><td>originalLanguage</td><td>NSString</td><td>源语言，可为空</td></tr><tr><td>targetLanguage</td><td>NSString</td><td>目标语言，可为空</td></tr>
+    <tr><td>needAsr</td><td>BOOL</td><td>是否开启实时 ASR</td></tr><tr><td>needTranslate</td><td>BOOL</td><td>是否开启翻译</td></tr>
+    <tr><td>needTTS</td><td>BOOL</td><td>是否开启 TTS</td></tr><tr><td>needAmplitude</td><td>BOOL</td><td>是否生成振幅数据</td></tr>
+    <tr><td>audioSource</td><td>ThingAudioSource</td><td>主音源</td></tr><tr><td>audioSourceList</td><td>NSArray&lt;NSNumber *&gt;</td><td>多音源列表</td></tr>
+    <tr><td>businessType</td><td>ThingAudioBusinessType</td><td>业务来源：0 Note，1 Translate</td></tr>
+    <tr><td>audio3AConfig</td><td>ThingAudio3AConfig</td><td>降噪、增益、回声消除配置</td></tr>
+    <tr><td>audioRecordUpstreamFormat</td><td>NSInteger</td><td>上行格式：0 PCM，1 Opus</td></tr>
+    <tr><td>saveDataWhenError</td><td>BOOL</td><td>异常时是否保留已录音数据</td></tr>
+    <tr><td>needAutoRecognize</td><td>BOOL</td><td>是否自动识别语言</td></tr>
+    <tr><td>startLivingStatus</td><td>NSInteger</td><td>直播状态：0 未开启，1 开启，2 更新参数</td></tr>
+    <tr><td>forceCreateToken</td><td>BOOL</td><td>是否强制刷新 Token</td></tr><tr><td>agentId</td><td>NSString</td><td>AI Agent ID</td></tr>
+    <tr><td>ttsConfig / ttsConfigList</td><td>ThingAudioTTSConfig</td><td>TTS 配置（单/多设备）</td></tr>
+  </tbody></table></div></details>
+  <details><summary>📦 ThingAudioRecordObject 字段（点击展开）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+    <tr><td>state</td><td>ThingAudioRecordState</td><td>当前录音状态</td></tr><tr><td>userRecordDuration</td><td>long</td><td>用户录音时长（毫秒）</td></tr>
+    <tr><td>recordType</td><td>ThingAudioRecordType</td><td>录音类型</td></tr><tr><td>recordId</td><td>NSString</td><td>业务录音 ID</td></tr>
+    <tr><td>deviceId</td><td>NSString</td><td>当前设备 ID</td></tr><tr><td>audioSource</td><td>ThingAudioSource</td><td>当前音源</td></tr>
+    <tr><td>transferType</td><td>ThingAudioRecordTransferType</td><td>文件转写或实时转写</td></tr>
+    <tr><td>needTranslate</td><td>BOOL</td><td>是否需要翻译</td></tr><tr><td>needTts</td><td>BOOL</td><td>是否需要 TTS</td></tr>
+    <tr><td>originalLanguage / targetLanguage</td><td>NSString</td><td>源/目标语言</td></tr>
+    <tr><td>businessType</td><td>ThingAudioBusinessType</td><td>业务来源</td></tr><tr><td>currentRealTimeTransferRequestId</td><td>long long</td><td>当前实时转写请求 ID</td></tr>
+  </tbody></table></div></details>
+</section>
+
+<!-- FILE LIST -->
+<section class="page" id="page-filelist">
+  <div class="page-header"><div class="breadcrumb">核心功能 / 二、文件列表</div><h2>文件列表</h2><p class="subtitle">查询已入库的多条录音文件，支持筛选、排序和搜索</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart TD;A["getRecordTransferResultList"] --> B{"返回结果"};B -->|"有数据"| C["渲染列表 名称 时间 状态"];B -->|"无数据"| D["展示空态"];C --> E["用户搜索"];E -->|"输入关键词"| F["searchRecordTransferResult 搜索"];F --> C</div>
+    <p class="diagram-caption">文件列表与搜索流程</p>
+  </div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">getRecordTransferResultList:success:failure:</div><div class="method-desc">查询录音文件列表 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)getRecordTransferResultList:(ThingAudioRecordFilesParams *)params
+                             success:(void(^)(NSArray&lt;ThingAudioRecordFile *&gt; *list))success
+                             failure:(ThingAudioDetectNativeFailure)failure;</code></pre>
+      <details><summary>ThingAudioRecordFilesParams 字段</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+        <tr><td>recordType</td><td>NSNumber</td><td>录音类型；nil 查全部</td></tr><tr><td>deviceId</td><td>NSString</td><td>设备 ID；nil 查全部设备</td></tr>
+        <tr><td>remove</td><td>NSNumber</td><td>是否在回收站；nil 不限制</td></tr><tr><td>transfer</td><td>NSNumber</td><td>转写状态；nil 查全部</td></tr>
+        <tr><td>source</td><td>NSNumber</td><td>文件来源：0 AI笔记，1 AI翻译</td></tr>
+        <tr><td>orderBy</td><td>NSNumber</td><td>排序：0 fileId，1 recordTime，2 updateAt</td></tr>
+        <tr><td>asc</td><td>NSNumber</td><td>0 降序，1 升序</td></tr>
+        <tr><td>lastFileId</td><td>NSNumber</td><td>分页游标，下一页传上一页最后一条的 fileId</td></tr>
+        <tr><td>pageSize</td><td>NSNumber</td><td>每页数量；0 或 nil 不分页</td></tr>
+      </tbody></table></div></details>
+    </div>
+  </div>
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">searchRecordTransferResult:success:failure:</div><div class="method-desc">混合搜索录音（标题、标签、转写内容） <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)searchRecordTransferResult:(ThingAudioRecordSearchMixParams *)params
+                            success:(void(^)(NSArray&lt;ThingAudioRecordSearchMixResultItem *&gt; *list))success
+                            failure:(ThingAudioDetectNativeFailure)failure;</code></pre>
+      <details><summary>ThingAudioRecordSearchMixParams 字段</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+        <tr><td>content</td><td>NSString</td><td>搜索关键词；全空白时返回空列表</td></tr>
+        <tr><td>pageNum</td><td>NSNumber</td><td>页码，默认 1</td></tr><tr><td>pageSize</td><td>NSNumber</td><td>每页数量，默认 20</td></tr>
+      </tbody></table></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- FILE DETAIL -->
+<section class="page" id="page-filedetail">
+  <div class="page-header"><div class="breadcrumb">核心功能 / 三、文件详情</div><h2>文件详情</h2><p class="subtitle">按 recordId 查询单条已入库录音的完整元数据</p></div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">getRecordTransferResultDetail:amplitudeMaxCount:success:failure:</div><div class="method-desc">获取录音详情 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)getRecordTransferResultDetail:(NSString *)recordId
+                      amplitudeMaxCount:(NSInteger)amplitudeMaxCount
+                               success:(void(^)(ThingAudioRecordFile *file))success
+                               failure:(ThingAudioDetectNativeFailure)failure;</code></pre>
+      <p>列表与详情返回相同类型 <code>ThingAudioRecordFile</code>。</p>
+    </div>
+  </div>
+  <details open><summary>📦 ThingAudioRecordFile 完整字段（点击收起/展开）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+    <tr><td>fileId</td><td>long long</td><td>本地文件主键</td></tr><tr><td>recordId</td><td>NSString</td><td>业务录音 ID</td></tr>
+    <tr><td>deviceId</td><td>NSString</td><td>来源设备 ID</td></tr><tr><td>name</td><td>NSString</td><td>显示名称</td></tr>
+    <tr><td>recordTime</td><td>long long</td><td>录音开始时间（秒）</td></tr><tr><td>duration</td><td>long</td><td>录音时长（毫秒）</td></tr>
+    <tr><td>recordType</td><td>ThingAudioRecordType</td><td>录音类型</td></tr><tr><td>audioFormat</td><td>ThingAudioRecordAudioFormat</td><td>音频格式</td></tr>
+    <tr><td>filePath</td><td>NSString</td><td>本地音频路径</td></tr><tr><td>amplitudes</td><td>NSString</td><td>振幅数据，逗号分隔</td></tr>
+    <tr><td>transfer</td><td>int</td><td>转写状态：0 未转写，1 转写中，2 已转写，3 失败</td></tr>
+    <tr><td>summary</td><td>int</td><td>总结状态：1 未总结，2 总结中，3 成功，4 失败</td></tr>
+    <tr><td>tranlateState</td><td>int</td><td>翻译状态：0 未翻译，1 翻译中，2 已翻译，3 失败</td></tr>
+    <tr><td>originalLanguage / targetLanguage</td><td>NSString</td><td>源/目标语言</td></tr>
+    <tr><td>tags</td><td>NSString</td><td>标签 JSON 字符串</td></tr><tr><td>cloudSyncStatus</td><td>NSInteger</td><td>UI 云同步状态</td></tr>
+    <tr><td>linkSharedStatus</td><td>NSInteger</td><td>分享状态：0 未分享，1 已分享</td></tr>
+  </tbody></table></div></details>
+</section>
+<!-- PROCESSING -->
+<section class="page" id="page-processing">
+  <div class="page-header"><div class="breadcrumb">核心功能 / 四、转写 / 总结 / 翻译</div><h2>转写 / 总结 / 翻译</h2><p class="subtitle">SDK 发起任务；结果可通过 Native Delegate 或云端查询获取</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">
+flowchart TB
+    A["准备 fileId + recordId"] --> B["addSyncListener:self"]
+    B --> C["组装 params + taskType"]
+    C --> D["processRecordTransferResult"]
+    D --> E{"请求结果"}
+    E -- "failure" --> F["处理 NSError / 重试"]
+    E -- "success" --> G["等待 uploadStatusResult:"]
+    G --> H["按 item.recordId 过滤"]
+    H --> I{"处理状态"}
+    I -- "处理中" --> G
+    I -- "成功" --> J["调用 Native 结果查询接口"]
+    I -- "失败" --> F
+    J --> K["展示转写 / 总结 / 翻译结果"]
+    K --> L["removeSyncListener:self"]
+    F --> L
+    </div>
+    <p class="diagram-caption">方式一：SDK 发起 + Native Delegate 监听 + SDK 结果查询</p>
+  </div>
+  <div class="callout"><div class="callout-title">发起统一走 SDK，结果有两种获取方式</div><p><code>processRecordTransferResult:taskType:progress:success:failure:</code> 始终用于发起转写、总结和翻译。<code>success</code> 只表示请求已提交；结果可以使用 <code>ThingAudioRecordSyncManagerDelegate</code> 监听，也可以使用云端查询接口轮询状态和读取结果。</p></div>
+  <div class="card">
+    <h3 class="card-title"><span class="icon">🧭</span> Native 发起规则</h3>
+    <div class="steps">
+      <div class="step"><h4>统一由 SDK 发起</h4><p>转写、总结和翻译都调用 <code>processRecordTransferResult:taskType:progress:success:failure:</code>，不通过云端发起接口。</p></div>
+      <div class="step"><h4>保存两个 ID</h4><p>使用 <code>fileId</code> 组装 Native 参数和查询 SDK 结果；使用 <code>recordId</code> 过滤 Delegate 状态或作为云端查询的 <code>key</code>。</p></div>
+      <div class="step"><h4>保证正式转写先完成</h4><p>总结和翻译依赖正式转写。<code>transferStatus != 2</code> 时先发起转写，等待成功后再继续。</p></div>
+      <div class="step"><h4>结果获取二选一</h4><p>可监听 <code>uploadStatusResult:</code> 后调用 SDK 查询；也可查询云端详情状态，成功后调用 <code>stt.get</code> 或 <code>summary.get</code>。</p></div>
+    </div>
+  </div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">processRecordTransferResult:taskType:progress:success:failure:</div><div class="method-desc">发起离线处理任务（转写/总结/翻译） <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (nullable NSString *)processRecordTransferResult:(ThingAudioRecordUploadFileParams *)params
+                             taskType:(NSInteger)taskType
+                             progress:(void(^)(double progress, int status))progress
+                              success:(ThingAudioDetectNativeSuccess)success
+                              failure:(ThingAudioDetectNativeFailure)failure;</code></pre>
+      <p><code>progress</code> 仅用于转写任务的文件上传进度，回调中的 <code>status</code> 是底层上传状态（0 开始、1 更新、2 结束、3 取消）；二者都不是 AI 最终完成事件。同步返回值是转写任务 ID；总结和翻译返回 nil。<code>success</code> 只表示请求已提交。</p>
+      <table class="param-table" style="margin-top:12px"><thead><tr><th>taskType</th><th>含义</th></tr></thead><tbody><tr><td>0</td><td>转写</td></tr><tr><td>1</td><td>总结</td></tr><tr><td>2</td><td>翻译</td></tr></tbody></table>
+      <details><summary>ThingAudioRecordUploadFileParams 字段</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+        <tr><td>fileId</td><td>long long</td><td>待处理文件 ID</td></tr><tr><td>recordId</td><td>NSString</td><td>业务录音 ID</td></tr>
+        <tr><td>language</td><td>NSString</td><td>ASR 倾向识别语言</td></tr><tr><td>transLang</td><td>NSString</td><td>翻译目标语言</td></tr>
+        <tr><td>summaryLang</td><td>NSString</td><td>总结语言</td></tr><tr><td>templateCode</td><td>NSString</td><td>总结模板编码</td></tr><tr><td>enableSpeaker</td><td>BOOL</td><td>是否开启说话人识别</td></tr>
+      </tbody></table></div></details>
+      <table class="param-table" style="margin-top:12px"><thead><tr><th>taskType</th><th>字段组合</th><th>参数含义</th></tr></thead><tbody>
+        <tr><td>0 转写</td><td>fileId、recordId、language、enableSpeaker</td><td>language 只是 ASR 倾向语言；enableSpeaker 控制说话人识别</td></tr>
+        <tr><td>1 总结</td><td>fileId、recordId、summaryLang；可选 templateCode</td><td>summaryLang 是总结输出语言；templateCode 为模板编码，nil 使用默认模板</td></tr>
+        <tr><td>2 翻译</td><td>fileId、recordId、transLang；可选 language</td><td>transLang 是翻译目标语言，必须是服务端支持的语言编码</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">ThingAudioRecordSyncManagerDelegate</div><div class="method-desc">SDK 方式监听转写、总结、翻译最终状态 <span class="badge badge-async">SDK 方式</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">@interface RecordDetailViewController () &lt;ThingAudioRecordSyncManagerDelegate&gt;
+@property (nonatomic, assign) long long fileId;
+@property (nonatomic, copy) NSString *recordId;
+@end
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    [[ThingAudioDetectManagerNative sharedInstance] addSyncListener:self];
+}
+
+- (void)dealloc {
+    [[ThingAudioDetectManagerNative sharedInstance] removeSyncListener:self];
+}
+
+- (void)uploadStatusResult:(ThingFileUpdateStatusResult *)result {
+    for (ThingFileUpdateStatusItem *item in result.items) {
+        if (![item.recordId isEqualToString:self.recordId]) continue;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (item.transferStatus == 2) [self loadRecognizeResult];
+            if (item.summaryStatus == 3) [self loadSummaryResult];
+            if (item.translateStatus == 2) [self loadRecognizeResult];
+            // transferStatus == 3、summaryStatus == 4、translateStatus == 3 时展示失败和重试入口
+        });
+    }
+}</code></pre>
+      <p>回调线程不固定，更新 UI 前必须切换到主线程。<code>items</code> 可能包含多条录音，必须逐项按 <code>recordId</code> 过滤。</p>
+      <table class="param-table"><thead><tr><th>字段</th><th>状态值</th><th>处理</th></tr></thead><tbody>
+        <tr><td>transferStatus</td><td>0 未转写，1 处理中，2 成功，3 失败</td><td>成功后查询正式转写</td></tr>
+        <tr><td>summaryStatus</td><td>0 旧数据，1 未总结，2 处理中，3 成功，4 失败</td><td>成功后查询总结结果</td></tr>
+        <tr><td>translateStatus</td><td>0 未翻译，1 处理中，2 成功，3 失败</td><td>成功后重新查询正式转写中的译文</td></tr>
+      </tbody></table>
+      <p>状态事件只关注 <code>transferStatus</code>、<code>summaryStatus</code> 和 <code>translateStatus</code>；失败项不包含 NSError，调用方应展示对应失败状态并按 taskType 重试。</p>
+    </div>
+  </div>
+  <div class="card">
+    <h3 class="card-title"><span class="icon">📖</span> SDK 结果查询接口</h3>
+    <table class="param-table"><thead><tr><th>方法</th><th>参数</th><th>返回</th></tr></thead><tbody>
+      <tr><td>getRecordTransferRecognizeResult</td><td>fileId</td><td>正式转写结果；翻译成功后也调用此方法获取译文</td></tr>
+      <tr><td>getRecordTransferSummaryResult</td><td>fileId</td><td><code>NSString *</code> 总结文本</td></tr>
+    </tbody></table>
+    <p style="margin-top:12px;color:var(--text-secondary)">只有对应状态进入成功值后才查询结果。状态事件的失败项不包含 NSError；请求阶段错误由接口的 failure 返回底层 NSError。</p>
+  </div>
+  <div class="card">
+    <h3 class="card-title"><span class="icon">☁️</span> 云端查询获取结果</h3>
+    <p style="margin-bottom:12px;color:var(--text-secondary)">发起转写、总结、翻译仍使用 Native SDK；本链路只使用云端接口查询状态和最终结果，不调用云端发起接口。</p>
+    <div class="diagram-container">
+      <div class="mermaid">
+flowchart TB
+    A["SDK processRecordTransferResult"] --> B["请求 success：仅表示已提交"]
+    B --> C["m.wearable.audio.record.detail.query"]
+    C --> D{"云端状态"}
+    D -- "处理中" --> C
+    D -- "transcriptionStatus = 9" --> E["m.wearable.audio.stt.get"]
+    D -- "translateStatus = 9" --> E
+    D -- "summaryStatus = 9" --> F["m.wearable.audio.summary.get"]
+    E --> G["读取 transcript / translation"]
+    F --> H["读取 summary / outline / imageUrl"]
+      </div>
+      <p class="diagram-caption">方式二：SDK 发起 + 云端详情状态查询 + 云端结果查询</p>
+    </div>
+    <div class="steps">
+      <div class="step"><h4>1. 先使用 SDK 发起</h4><p>调用 <code>processRecordTransferResult:taskType:progress:success:failure:</code>，根据 <code>taskType</code> 区分转写、总结和翻译。</p></div>
+      <div class="step"><h4>2. 查询云端详情状态</h4><p>调用 <code>m.wearable.audio.record.detail.query</code>，传入 <code>recordId</code>；云端 AI 接口使用同一个值作为 <code>key</code>。</p></div>
+      <div class="step"><h4>3. 查询正式结果</h4><p>转写或翻译成功后调用 <code>m.wearable.audio.stt.get</code>；总结成功后调用 <code>m.wearable.audio.summary.get</code>。</p></div>
+    </div>
+    <details open><summary>云端查询接口示例</summary><div class="detail-content">
+      <pre><code class="language-objc">NSString *recordId = @&quot;ej_PHONE_IMPORT00BIO7kN_1785149135723&quot;;
+
+// 1. 查询云端详情和 transcriptionStatus / translateStatus / summaryStatus
+[[ThingSmartRequest new] requestWithApiName:@&quot;m.wearable.audio.record.detail.query&quot;
+                                  postData:@{@&quot;recordId&quot;: recordId}
+                                   version:@&quot;1.0&quot;
+                                   success:^(id detail) {
+    // 2. 根据状态选择 stt.get 或 summary.get
+} failure:^(NSError *error) {
+    // 详情查询失败
+}];
+
+// 3. 获取正式转写；翻译结果也从 translation 字段读取
+[[ThingSmartRequest new] requestWithApiName:@&quot;m.wearable.audio.stt.get&quot;
+                                  postData:@{@&quot;key&quot;: recordId}
+                                   version:@&quot;1.0&quot;
+                                   success:^(NSArray *segments) {
+    // segment.transcript / segment.translation
+} failure:^(NSError *error) {
+    // 转写或翻译结果查询失败
+}];
+
+// 4. 获取总结
+[[ThingSmartRequest new] requestWithApiName:@&quot;m.wearable.audio.summary.get&quot;
+                                  postData:@{@&quot;key&quot;: recordId}
+                                   version:@&quot;1.0&quot;
+                                   success:^(NSDictionary *result) {
+    // result.title / result.summary / result.outline / result.imageUrl
+} failure:^(NSError *error) {
+    // 总结结果查询失败
+}];</code></pre>
+      <table class="param-table"><thead><tr><th>云端接口</th><th>版本</th><th>成功状态/结果</th></tr></thead><tbody>
+        <tr><td>m.wearable.audio.record.detail.query</td><td>1.0</td><td>读取 <code>transcriptionStatus</code>、<code>translateStatus</code>、<code>summaryStatus</code></td></tr>
+        <tr><td>m.wearable.audio.stt.get</td><td>1.0</td><td><code>result[]</code>，读取 <code>transcript</code> 和 <code>translation</code></td></tr>
+        <tr><td>m.wearable.audio.summary.get</td><td>1.0</td><td>读取 <code>title</code>、<code>summary</code>、<code>outline</code>、<code>imageUrl</code></td></tr>
+      </tbody></table>
+      <p style="margin-top:12px;color:var(--text-secondary)">云端状态成功值为 <code>9</code>；Native Delegate 状态值与云端状态值不同，不能混用。查询失败通过云端请求的 failure 返回。</p>
+    </div></details>
+  </div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">完整 Native 处理实现</div><div class="method-desc">参数组装、Delegate 状态过滤、最终结果查询 <span class="badge badge-async">可复用</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">@interface RecordProcessViewController () &lt;ThingAudioRecordSyncManagerDelegate&gt;
+@property (nonatomic, assign) long long fileId;
+@property (nonatomic, copy) NSString *recordId;
+@end
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [[ThingAudioDetectManagerNative sharedInstance] addSyncListener:self];
+    [self reloadDetail];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [[ThingAudioDetectManagerNative sharedInstance] removeSyncListener:self];
+}
+
+- (void)startTask:(NSInteger)taskType {
+    ThingAudioRecordUploadFileParams *params = [ThingAudioRecordUploadFileParams new];
+    params.fileId = self.fileId;       // 任务/结果接口使用
+    params.recordId = self.recordId;   // 状态事件过滤使用
+    params.language = @&quot;zh&quot;;          // ASR 倾向语言
+    params.enableSpeaker = NO;        // 说话人识别
+    if (taskType == 1) {
+        params.summaryLang = @&quot;zh&quot;;
+        params.templateCode = nil;    // 默认总结模板
+    } else if (taskType == 2) {
+        params.transLang = @&quot;en&quot;;     // 翻译目标语言
+    }
+
+    [[ThingAudioDetectManagerNative sharedInstance]
+        processRecordTransferResult:params taskType:taskType
+        progress:^(double progress, int status) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [self showStatus:[NSString stringWithFormat:@&quot;文件上传中 %.0f%%（status=%d）&quot;, progress, status]];
+            });
+        } success:^{
+            // 只表示请求已提交，最终状态等待 uploadStatusResult:
+        } failure:^(NSError *error) {
+            [self showStatus:error.localizedDescription];
+        }];
+}
+
+- (void)uploadStatusResult:(ThingFileUpdateStatusResult *)result {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (ThingFileUpdateStatusItem *item in result.items) {
+            if (![item.recordId isEqualToString:self.recordId]) continue;
+            if (item.transferStatus == 2) [self fetchRecognizeResult];
+            if (item.summaryStatus == 3) [self fetchSummaryResult];
+            if (item.translateStatus == 2) [self fetchRecognizeResult];
+            if (item.transferStatus == 3 || item.summaryStatus == 4 || item.translateStatus == 3) {
+                [self showStatus:@&quot;AI 处理失败，可按对应 taskType 重试&quot;];
+            }
+        }
+    });
+}
+
+- (void)fetchRecognizeResult {
+    [[ThingAudioDetectManagerNative sharedInstance]
+        getRecordTransferRecognizeResult:self.fileId
+        success:^(NSString *text) { [self showText:text]; }
+        failure:^(NSError *error) { [self showStatus:error.localizedDescription]; }];
+}
+
+- (void)fetchSummaryResult {
+    [[ThingAudioDetectManagerNative sharedInstance]
+        getRecordTransferSummaryResult:self.fileId
+        success:^(NSString *text) { [self showText:text]; }
+        failure:^(NSError *error) { [self showStatus:error.localizedDescription]; }];
+}</code></pre>
+      <p>退出或销毁页面时必须用同一 listener 实例移除监听；回到前台时重新查询详情。<code>fileId</code> 不用于过滤批量状态事件，过滤必须使用 <code>recordId</code>。</p>
+    </div>
+  </div>
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">getRecordTransferRealTimeResult:success:failure:</div><div class="method-desc">查询实时录音 ASR 分句 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)getRecordTransferRealTimeResult:(ThingAudioRecordAsrsParams *)params
+                                 success:(void(^)(NSArray&lt;ThingAudioRecordAsrResult *&gt; *list))success
+                                 failure:(ThingAudioDetectNativeFailure)failure;</code></pre>
+      <details><summary>ThingAudioRecordAsrsParams / AsrResult 字段</summary><div class="detail-content">
+        <p><strong>Params:</strong></p><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>fileId</td><td>NSNumber</td><td>按本地文件 ID 查询</td></tr><tr><td>recordId</td><td>NSString</td><td>按业务录音 ID 查询</td></tr><tr><td>asrId</td><td>NSNumber</td><td>查询 ≤ 该 ID 的数据</td></tr>
+        </tbody></table>
+        <p style="margin-top:12px"><strong>AsrResult:</strong></p><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>asrId</td><td>long long</td><td>分句 ID</td></tr><tr><td>beginTime / endTime</td><td>long long</td><td>起止时间（毫秒）</td></tr>
+          <tr><td>text / asr</td><td>NSString</td><td>展示文本 / ASR 原文</td></tr><tr><td>translate</td><td>NSString</td><td>翻译文本</td></tr>
+          <tr><td>channel</td><td>int</td><td>声道：0 左，1 右</td></tr><tr><td>status</td><td>int</td><td>0 未完成，1 成功，2 失败</td></tr>
+        </tbody></table>
+      </div></details>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="card-title"><span class="icon">☁️</span> 5.5 云端配置接口</h3>
+    <p style="margin-bottom:12px;color:var(--text-secondary)">通过涂鸦云端 API 获取语言列表和总结模板列表，调用方式统一使用 <code>ThingSmartRequest</code>。</p>
+
+    <div class="method open">
+      <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">m.wearable.audio.translate.lang.list</div><div class="method-desc">获取翻译语言列表 <span class="badge badge-async">云端</span></div></div><span class="method-chevron">▶</span></div>
+      <div class="method-body">
+        <pre><code class="language-objc">NSDictionary *postData = @{@"source": @[@"asr-llm"]};
+[[ThingSmartRequest new] requestWithApiName:@"m.wearable.audio.translate.lang.list"
+                                  postData:postData
+                                   version:@"1.0"
+                                   success:^(id result) {
+    // result 包含语言列表
+} failure:^(NSError *error) {
+    // 请求失败
+}];</code></pre>
+        <table class="param-table"><thead><tr><th>参数</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>apiName</td><td>NSString</td><td>m.wearable.audio.translate.lang.list</td></tr>
+          <tr><td>postData</td><td>NSDictionary</td><td>@{@"source": @[@"asr-llm"]} 或 @[@"asr-llm-tts"]</td></tr>
+          <tr><td>version</td><td>NSString</td><td>1.0</td></tr>
+        </tbody></table>
+        <p style="margin-top:12px;font-weight:600">source 可选值：</p>
+        <table class="param-table"><tbody>
+          <tr><td>asr-llm</td><td>仅 ASR + LLM 能力</td></tr>
+          <tr><td>asr-llm-tts</td><td>含 TTS 能力</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+
+    <div class="method">
+      <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">m.wearable.summary.template.recommend.list.get</div><div class="method-desc">获取总结模板推荐列表 <span class="badge badge-async">云端</span></div></div><span class="method-chevron">▶</span></div>
+      <div class="method-body">
+        <pre><code class="language-objc">[[ThingSmartRequest new] requestWithApiName:@"m.wearable.summary.template.recommend.list.get"
+                                  postData:nil
+                                   version:@"1.0"
+                                   success:^(id result) {
+    // result 包含模板列表
+} failure:^(NSError *error) {
+    // 请求失败
+}];</code></pre>
+        <table class="param-table"><thead><tr><th>参数</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>apiName</td><td>NSString</td><td>m.wearable.summary.template.recommend.list.get</td></tr>
+          <tr><td>postData</td><td>NSDictionary</td><td>nil</td></tr>
+          <tr><td>version</td><td>NSString</td><td>1.0</td></tr>
+        </tbody></table>
+        <p style="margin-top:12px;font-weight:600">返回结构：result 为分组数组，每个分组含模板列表。</p>
+        <p style="margin-top:8px;font-weight:600">外层字段：</p>
+        <table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>result</td><td>NSArray</td><td>分组数组</td></tr>
+          <tr><td>success</td><td>BOOL</td><td>请求是否成功</td></tr>
+          <tr><td>status</td><td>NSString</td><td>状态，成功为 "ok"</td></tr>
+        </tbody></table>
+        <p style="margin-top:12px;font-weight:600">分组对象字段：</p>
+        <table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>nodeCode</td><td>NSString</td><td>分组编码：recommend（推荐）、universal（通用）、content_interview（内容与访谈）、industry_expert（行业专家）</td></tr>
+          <tr><td>nodeName</td><td>NSString</td><td>分组名称，如「推荐」「通用」</td></tr>
+          <tr><td>templates</td><td>NSArray</td><td>该分组下的模板列表</td></tr>
+        </tbody></table>
+        <p style="margin-top:12px;font-weight:600">模板对象字段：</p>
+        <table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>id</td><td>NSString</td><td>模板 ID</td></tr>
+          <tr><td>templateCode</td><td>NSString</td><td><strong>模板编码，传给 processRecordTransferResult 的 templateCode 参数</strong></td></tr>
+          <tr><td>templateName</td><td>NSString</td><td>模板名称，如「AI 智能匹配」「会议」「通用总结」</td></tr>
+          <tr><td>templateDesc</td><td>NSString</td><td>模板描述，如「AI根据内容自动选择」「提取纪要与待办」</td></tr>
+          <tr><td>icon</td><td>NSString</td><td>模板图标 URL</td></tr>
+          <tr><td>sort</td><td>NSInteger</td><td>分组内排序，数字越小越靠前</td></tr>
+          <tr><td>customize</td><td>BOOL</td><td>是否自定义模板</td></tr>
+          <tr><td>needColorAdapt</td><td>BOOL</td><td>图标是否需要颜色适配</td></tr>
+          <tr><td>objectKey</td><td>NSString</td><td>图标对象 Key（用于缓存等）</td></tr>
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FILE MANAGE -->
+<section class="page" id="page-filemanage">
+  <div class="page-header"><div class="breadcrumb">文件管理 / 五、文件管理</div><h2>文件管理</h2><p class="subtitle">更新元数据、批量删除、安全路径与空间查询；标签详见六</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart TD;A["ThingAudioRecordFile"] --> B["updateRecordTransferResult 更新"];A --> C["removeFileList 删除"];A --> D["updateRecordTagResult 标签"];A --> E["operateAudioFileSafePath 路径"];A --> F["getAudioFilesSize 空间"]</div>
+    <p class="diagram-caption">文件管理操作矩阵</p>
+  </div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">updateRecordTransferResult:success:failure:</div><div class="method-desc">更新文件元数据 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <details><summary>ThingAudioRecordFileUpdateParams 字段（fileId 必填，其余 nil 不更新）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+        <tr><td>fileId</td><td>long long</td><td>必填，本地文件 ID</td></tr><tr><td>name</td><td>NSString</td><td>新文件名</td></tr>
+        <tr><td>status</td><td>NSNumber</td><td>同步状态</td></tr><tr><td>visit</td><td>NSNumber</td><td>是否访问过</td></tr>
+        <tr><td>remove</td><td>NSNumber</td><td>是否移入回收站</td></tr><tr><td>transfer</td><td>NSNumber</td><td>转写状态</td></tr>
+        <tr><td>summary</td><td>NSNumber</td><td>总结状态</td></tr><tr><td>translateState</td><td>NSNumber</td><td>翻译状态</td></tr>
+        <tr><td>tags</td><td>NSString</td><td>标签 JSON 字符串</td></tr><tr><td>originalLanguage / targetLanguage</td><td>NSString</td><td>源/目标语言</td></tr>
+      </tbody></table></div></details>
+    </div>
+  </div>
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">removeFileList:success:failure:</div><div class="method-desc">批量删除文件 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+      <tr><td>fileIds</td><td>NSArray&lt;NSNumber *&gt;</td><td>待删除的本地文件 ID 数组</td></tr>
+      <tr><td>isDeleteAll</td><td>BOOL</td><td>YES 同时删除本地和云端；NO 仅本地</td></tr>
+    </tbody></table></div>
+  </div>
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">updateRecordTagResult / getAudioFilesSize / operateAudioFileSafePath</div><div class="method-desc">标签操作（详见六）、空间查询、安全路径</div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <details><summary>标签操作参数</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+        <tr><td>recordId</td><td>NSString</td><td>业务录音 ID</td></tr><tr><td>bizType</td><td>NSInteger</td><td>0 新增，1 删除，2 排序</td></tr>
+        <tr><td>tags</td><td>NSArray&lt;NSString *&gt;</td><td>标签数组；排序时传完整有序数组</td></tr>
+      </tbody></table></div></details>
+      <details><summary>安全路径操作参数</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>获取安全路径时</th><th>删除安全路径时</th></tr></thead><tbody>
+        <tr><td>fileId</td><td>可填写源文件 ID</td><td>通常不使用</td></tr><tr><td>mp3FileName</td><td>源 MP3 文件名或路径</td><td>不使用</td></tr>
+        <tr><td>targetDirectory</td><td>目标安全目录</td><td>不使用</td></tr><tr><td>deleteMiniAppilePath</td><td>不使用</td><td>待删除的安全路径</td></tr>
+      </tbody></table></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- TAGS -->
+<section class="page" id="page-tags">
+  <div class="page-header"><div class="breadcrumb">文件管理 / 六、标签管理</div><h2>标签管理</h2><p class="subtitle">基于 recordId 的标签新增、删除、排序与跨端同步</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart TD;A["查询文件详情，读取 recordId 与 tags"] --> B{"标签操作"};B --> C["新增 bizType=0"];B --> D["删除 bizType=1"];B --> E["排序 bizType=2，传完整数组"];C --> F["updateRecordTagResult:"];D --> F;E --> F;F --> G["云端校验、更新标签与搜索索引"];G --> H["APP 更新本地 tags"];H --> I["刷新文件详情"]</div>
+    <p class="diagram-caption">标签写入与本地同步流程</p>
+  </div>
+  <div class="card"><h3 class="card-title"><span class="icon">🏷️</span> 核心规则</h3>
+    <table class="param-table"><thead><tr><th>规则</th><th>约定</th></tr></thead><tbody>
+      <tr><td>归属标识</td><td>使用 <code>recordId</code>，不要用 <code>fileId</code> 代替</td></tr>
+      <tr><td>数量与长度</td><td>单条录音最多 10 个标签；单个标签最多 100 个字符</td></tr>
+      <tr><td>来源</td><td><code>tagSource=1</code> 手动添加；<code>tagSource=0</code> AI 生成，AI 不覆盖手动标签</td></tr>
+      <tr><td>排序</td><td><code>sortOrder</code> 越小越靠前，排序必须传完整数组</td></tr>
+      <tr><td>更新时机</td><td>Native 回调成功后再更新页面；失败时保留旧标签并展示 NSError</td></tr>
+    </tbody></table>
+  </div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">updateRecordTagResult:success:failure:</div><div class="method-desc">新增、删除或排序录音标签 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)updateRecordTagResult:(ThingAudioRecordUpdateRecordTagsParams *)params
+                      success:(ThingAudioDetectNativeSuccess)success
+                      failure:(ThingAudioDetectNativeFailure)failure;</code></pre>
+      <table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+        <tr><td>recordId</td><td>NSString</td><td>必填，业务录音唯一标识</td></tr>
+        <tr><td>bizType</td><td>NSInteger</td><td>0 新增，1 删除，2 排序</td></tr>
+        <tr><td>tags</td><td>NSArray&lt;NSString *&gt;</td><td>新增/删除传一个标签；排序传完整有序数组</td></tr>
+      </tbody></table>
+      <div class="callout" style="margin-top:16px"><div class="callout-title">📌 调用语义</div><p><code>bizType=0/1</code> 当前链路只处理 tags 第一项；<code>bizType=2</code> 使用数组下标更新云端顺序。success 表示云端处理与 APP 本地 tags 落库均成功。Native API 不提供历史标签查询，需使用云端 <code>m.wearable.audio.tag.history</code>。</p></div>
+    </div>
+  </div>
+  <div class="card"><h3 class="card-title"><span class="icon">🔍</span> 展示与搜索</h3><p>文件列表/详情中的 <code>tags</code> 是 JSON 字符串数组，解析后按数组顺序展示。点击标签时，将标签名称作为关键词传给 <code>searchRecordTransferResult:</code>，搜索标题、标签和转写内容。标签展开/收起属于页面逻辑，不额外调用写入接口。</p></div>
+</section>
+
+<!-- TRANSFER -->
+<section class="page" id="page-transfer">
+  <div class="page-header"><div class="breadcrumb">文件管理 / 七、离线文件传输</div><h2>设备离线文件传输</h2><p class="subtitle">从录音硬件（耳机/眼镜等）下载离线录音文件</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart LR;A["查询离线状态 getDeviceOfflineFileStatus"] --> B["开始下载 loadOfflineFile"];B --> C{"速度 通道 优化?"};C -->|"是"| D["切换通道 switchModeLoadOfflineFile"];C -->|"否"| E["持续接收 监听器回调"];D --> E</div>
+    <p class="diagram-caption">离线文件下载流程</p>
+  </div>
+  <div class="card"><h3 class="card-title"><span class="icon">📡</span> 接口一览</h3><table class="param-table"><thead><tr><th>方法</th><th>作用</th><th>参数</th></tr></thead><tbody>
+    <tr><td>getDeviceOfflineFileStatus</td><td>查询离线文件列表及下载状态</td><td>deviceId → ThingAudioRecordFileTransferRecoder</td></tr>
+    <tr><td>loadOfflineFileWithDeviceId</td><td>开始/继续下载</td><td>deviceId, channel, sessionId（0 新建）</td></tr>
+    <tr><td>switchModeLoadOfflineFileWithDeviceId</td><td>BLE/AP 间切换并继续</td><td>参数同上，sessionId 为已有任务</td></tr>
+  </tbody></table></div>
+  <details><summary>📦 ThingAudioRecordFileTransferRecoder 字段</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+    <tr><td>status</td><td>int</td><td>0 未开始，1 下载中，2 已结束</td></tr><tr><td>speed</td><td>double</td><td>下载速度 KB/s</td></tr>
+    <tr><td>sessionId</td><td>long long</td><td>下载任务 ID</td></tr><tr><td>remainingDownloadTime</td><td>long long</td><td>预计剩余时间；速度过低时 -10000</td></tr>
+    <tr><td>downloadedFileProgress</td><td>NSInteger</td><td>总体下载进度</td></tr><tr><td>totalCount / downloadedCount</td><td>NSInteger</td><td>文件总数 / 已下载数</td></tr>
+    <tr><td>channel</td><td>int</td><td>0 未指定，1 BLE，2 AP</td></tr><tr><td>curFile</td><td>ThingAudioRecordFile</td><td>当前下载文件</td></tr>
+    <tr><td>waitingFiles / failedFiles / successedFiles</td><td>NSArray</td><td>等待/失败/成功文件列表</td></tr>
+    <tr><td>apConnectState</td><td>NSInteger</td><td>AP 状态：0 未开启，1 已开启，2 已连接</td></tr>
+  </tbody></table></div></details>
+</section>
+
+<!-- IMPORT -->
+<section class="page" id="page-import">
+  <div class="page-header"><div class="breadcrumb">文件管理 / 八、音频导入</div><h2>音频导入</h2><p class="subtitle">从系统文件选择器导入外部音频文件</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart LR;A["startImport 选择文件"] --> B["用户选择文件"];B --> C{"导入结果"};C -->|"成功"| D["入库"];C -->|"失败"| E["retryImport 重试"];C -->|"取消"| F["cancelImport"];E --> C</div>
+    <p class="diagram-caption">音频导入流程</p>
+  </div>
+  <div class="card"><h3 class="card-title"><span class="icon">🎵</span> 接口一览</h3><table class="param-table"><thead><tr><th>方法</th><th>作用</th></tr></thead><tbody>
+    <tr><td>startImportWithSuccess:failure:</td><td>打开文件选择并开始导入</td></tr><tr><td>retryImportWithSuccess:failure:</td><td>重试失败的导入任务</td></tr>
+    <tr><td>cancelImportWithSuccess:failure:</td><td>取消当前导入任务</td></tr><tr><td>cancelRetryWithSuccess:failure:</td><td>取消当前重试任务</td></tr>
+    <tr><td>getAudioImportStatusWithSuccess:failure:</td><td>查询最近导入状态</td></tr>
+  </tbody></table><p style="margin-top:12px;font-size:13px;color:var(--text-secondary)">持续状态通过导入监听器回调（见「事件监听」）。</p></div>
+  <details><summary>📦 ThingAudioFileImportStatus 字段</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+    <tr><td>status</td><td>int</td><td>0 未开始，1 导入中，2 完成，3 中断，4 分享导入失败</td></tr>
+    <tr><td>errorCode / errorMessage</td><td>-</td><td>中断或失败信息</td></tr>
+    <tr><td>totalFileCount / successCount</td><td>NSNumber</td><td>文件总数 / 成功数量</td></tr>
+    <tr><td>completeCount</td><td>NSNumber</td><td>已完成数量（含成功和失败）</td></tr>
+    <tr><td>failedFiles</td><td>NSArray</td><td>失败文件列表</td></tr>
+    <tr><td>totalFileSize</td><td>NSNumber</td><td>成功导入文件总大小（字节）</td></tr>
+  </tbody></table></div></details>
+</section>
+
+<!-- CLOUD SYNC -->
+<section class="page" id="page-cloudsync">
+  <div class="page-header"><div class="breadcrumb">文件管理 / 九、云同步</div><h2>云同步</h2><p class="subtitle">Note 记录的云端上传与下载</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart LR;A["本地 Note 录音"] -->|"syncNoteRecord"| B["上传 + 拉取云端"];B --> C["云端数据"];C -->|"syncDownloadNoteAudio"| A;C -->|"getCloudSyncSwitchStatus"| D["查询开关 网络策略"]</div>
+    <p class="diagram-caption">云同步数据流向</p>
+  </div>
+  <div class="card"><h3 class="card-title"><span class="icon">☁️</span> 接口一览</h3><table class="param-table"><thead><tr><th>方法</th><th>作用</th><th>参数 / 返回</th></tr></thead><tbody>
+    <tr><td>getCloudSyncSwitchStatusWithSuccess:failure:</td><td>查询云同步开关和网络策略</td><td>→ ThingAudioCloudSyncSwitchConfig</td></tr>
+    <tr><td>syncNoteRecordWithCompletion:</td><td>上传本地待同步 Note 并下载云端记录</td><td>completion(error)；成功 error 为 nil</td></tr>
+    <tr><td>syncDownloadNoteAudioWithRecordId:</td><td>下载指定 Note 音频</td><td>recordId；无完成回调，进度通过同步监听器观察</td></tr>
+  </tbody></table></div>
+  <details><summary>📦 ThingAudioCloudSyncSwitchConfig 字段</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+    <tr><td>enabled</td><td>BOOL</td><td>是否开启云同步</td></tr><tr><td>syncType</td><td>int</td><td>0 所有网络，1 仅 Wi-Fi</td></tr>
+    <tr><td>modifyTime</td><td>long long</td><td>最后修改时间（毫秒时间戳）</td></tr><tr><td>isNewUser</td><td>BOOL</td><td>是否为未操作过同步开关的新用户</td></tr>
+  </tbody></table></div></details>
+</section>
+<!-- MERGE & SHARE -->
+<section class="page" id="page-mergeshare">
+  <div class="page-header"><div class="breadcrumb">扩展功能 / 十、合并与分享</div><h2>合并与分享</h2><p class="subtitle">多条录音合并、生成可分享链接</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart TD;A["选择多条录音"] --> B["mergeRecordList 合并"];B --> C["监听器回调进度"];C --> D["合并产物 recordId"];D --> E["operateRecordShareLink 分享"];E --> F["可分享 URL"]</div>
+    <p class="diagram-caption">合并与分享流程</p>
+  </div>
+  <div class="card"><h3 class="card-title"><span class="icon">🔗</span> 录音合并</h3><table class="param-table"><thead><tr><th>方法</th><th>作用</th></tr></thead><tbody>
+    <tr><td>mergeRecordList:success:failure:</td><td>合并多条录音（设置 recordIdList）</td></tr>
+    <tr><td>cancelMergeRecordListWithSuccess:failure:</td><td>取消当前合并任务</td></tr>
+    <tr><td>getFileMergeStatusWithSuccess:failure:</td><td>查询当前合并状态 → ThingAudioRecordMergeOperatorStatus</td></tr>
+  </tbody></table></div>
+  <div class="card"><h3 class="card-title"><span class="icon">📤</span> 分享链接</h3>
+    <pre><code class="language-objc">- (void)operateRecordShareLink:(ThingAudioLinkShareConfig *)config
+                       success:(void(^)(NSString *shareLink))success
+                       failure:(ThingAudioDetectNativeFailure)failure;</code></pre>
+    <details><summary>ThingAudioLinkShareConfig 字段</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+      <tr><td>recordId</td><td>NSString</td><td>待分享的业务录音 ID</td></tr><tr><td>shareTypes</td><td>NSArray&lt;NSString *&gt;</td><td>分享类型数组</td></tr>
+      <tr><td>expireTime</td><td>NSInteger</td><td>分享链接过期时间</td></tr><tr><td>password</td><td>NSString</td><td>分享密码，可为空</td></tr>
+      <tr><td>shareStatus</td><td>NSInteger</td><td>1 开启/分享中，2 关闭分享</td></tr>
+    </tbody></table></div></details>
+  </div>
+</section>
+
+<!-- TRANSLATE -->
+<section class="page" id="page-translate">
+  <div class="page-header"><div class="breadcrumb">扩展功能 / 十一、文本翻译</div><h2>文本翻译</h2><p class="subtitle">独立文本翻译入口与翻译历史管理</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart LR;A["输入文本 q"] --> B["startTranslate 翻译"];B --> C["translation 结果"];C --> D["getTranslateFileList 历史"];D --> E["getTranslateFileDetail 详情"];E --> F["sendToNote 转 Note"]</div>
+    <p class="diagram-caption">文本翻译功能链路</p>
+  </div>
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">startTranslate:success:failure:</div><div class="method-desc">发起文本翻译 <span class="badge badge-async">异步</span></div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <details><summary>ThingTextTranslateRequestParams / ResultParams 字段</summary><div class="detail-content">
+        <p><strong>请求参数：</strong></p><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>q</td><td>NSString</td><td>必填，待翻译文本</td></tr><tr><td>from</td><td>NSString</td><td>源语言；可用 <code>auto</code> 自动检测</td></tr><tr><td>to</td><td>NSString</td><td>必填，目标语言</td></tr>
+        </tbody></table>
+        <p style="margin-top:12px"><strong>返回结果：</strong></p><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+          <tr><td>taskId</td><td>NSString</td><td>翻译任务 ID</td></tr><tr><td>translation</td><td>NSString</td><td>翻译结果</td></tr>
+          <tr><td>taskStatus</td><td>NSInteger</td><td>任务状态</td></tr><tr><td>timbreUrl</td><td>NSString</td><td>同声传译音色 URL</td></tr>
+        </tbody></table>
+      </div></details>
+    </div>
+  </div>
+  <div class="card"><h3 class="card-title"><span class="icon">🗂️</span> 翻译历史管理</h3><table class="param-table"><thead><tr><th>方法</th><th>作用</th></tr></thead><tbody>
+    <tr><td>getTranslateFileList:success:failure:</td><td>查询翻译历史列表</td></tr>
+    <tr><td>getTranslateFileDetail:success:failure:</td><td>查询单条翻译详情</td></tr>
+    <tr><td>sendToNote:success:failure:</td><td>将翻译文件转成 Note 并触发上传</td></tr>
+    <tr><td>batchRemoveTranslationFiles:success:failure:</td><td>批量删除翻译记录</td></tr>
+  </tbody></table></div>
+</section>
+
+<!-- DEVICE -->
+<section class="page" id="page-device">
+  <div class="page-header"><div class="breadcrumb">扩展功能 / 十二、设备与快捷入口</div><h2>设备与快捷入口</h2><p class="subtitle">蓝牙状态、录音悬浮窗、小组件与快捷指令</p></div>
+  <div class="card"><h3 class="card-title"><span class="icon">📱</span> 接口一览</h3><table class="param-table"><thead><tr><th>方法</th><th>作用</th><th>参数 / 返回</th></tr></thead><tbody>
+    <tr><td>getEarPhoneBTConnectedStatus</td><td>查询耳机蓝牙连接状态</td><td>deviceId → connected: BOOL</td></tr>
+    <tr><td>operateRecordingFloat</td><td>显示/隐藏原生录音悬浮窗</td><td>visible: BOOL</td></tr>
+    <tr><td>getQuickEntryListWithSuccess:failure:</td><td>查询小组件、快捷指令、控制中心</td><td>→ NSArray&lt;ThingAudioRecordQuickEntryInfo *&gt;</td></tr>
+    <tr><td>setQuickEntryEnabled:success:failure:</td><td>开启/关闭指定入口</td><td>ThingAudioRecordSetQuickEntryEnabledParams</td></tr>
+    <tr><td>operateEventLimit:limited:success:</td><td>兼容方法，Native 不做限流</td><td>调用后立即 success</td></tr>
+    <tr><td>readyToSetupNativeChannelWithSuccess:</td><td>兼容方法，Native 无需建立桥接</td><td>调用后立即 success</td></tr>
+  </tbody></table></div>
+  <details><summary>📦 快速入口参数说明</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
+    <tr><td>type</td><td>ThingAudioRecordQuickEntryType</td><td>iOS：201 小组件，202 快捷指令，203 控制中心</td></tr>
+    <tr><td>componentId</td><td>int</td><td>组件 ID：10101 = 1×1，10102 = 2×2</td></tr>
+    <tr><td>enabled</td><td>NSInteger</td><td>0 关闭，1 开启（仅设置接口）</td></tr>
+    <tr><td>state</td><td>NSInteger</td><td>0 不展示，1 已添加，2 未添加（仅查询）</td></tr>
+  </tbody></table></div></details>
+</section>
+
+<!-- EVENTS -->
+<section class="page" id="page-events">
+  <div class="page-header"><div class="breadcrumb">扩展功能 / 十三、事件监听</div><h2>事件监听</h2><p class="subtitle">6 类监听器：录音、离线传输、导入、云同步、合并、设备</p></div>
+  <div class="diagram-container">
+    <div class="mermaid">flowchart TD;subgraph A["设备级"];A1["录音事件"];A2["离线传输"];A3["设备能力"];end;subgraph B["全局级"];B1["云同步"];B2["音频导入"];B3["录音合并"];end</div>
+    <p class="diagram-caption">6 类监听器与作用域</p>
+  </div>
+  <div class="callout"><div class="callout-title">📌 监听器通用规则</div><p>监听器必须由调用方强引用，销毁前用同一实例移除。带 <code>deviceId</code> 的按设备隔离，不带的为全局监听。录音监听器（<code>ThingAudioRecordManagerDelegate</code>）见「一、录音 → 1.8」。</p></div>
+  <div class="card"><h3 class="card-title"><span class="icon">🔔</span> 监听器注册/移除对照表</h3><table class="param-table"><thead><tr><th>注册</th><th>移除</th><th>Listener 协议</th><th>作用域</th></tr></thead><tbody>
+    <tr><td>addOfflineFileListener:deviceId:</td><td>removeOfflineFileListener:deviceId:</td><td>FileTransferManagerDelegate</td><td>指定设备</td></tr>
+    <tr><td>addDeviceListener:deviceId:</td><td>removeDeviceListener:deviceId:</td><td>DeviceManageManagerDelegate</td><td>指定设备</td></tr>
+    <tr><td>addSyncListener:</td><td>removeSyncListener:</td><td>ThingAudioRecordSyncManagerDelegate</td><td>全局；转写/总结/翻译状态见四</td></tr>
+    <tr><td>addCloudSyncSwitchListener:</td><td>removeCloudSyncSwitchListener:</td><td>CloudSyncSwitchManagerDelegate</td><td>全局</td></tr>
+    <tr><td>addFileImportListener:</td><td>removeFileImportListener:</td><td>FileImportManagerDelegate</td><td>全局</td></tr>
+    <tr><td>addMergeListener:</td><td>removeMergeListener:</td><td>AudiorecordAudioMergeManagerDelegate</td><td>全局</td></tr>
+  </tbody></table><p style="margin-top:12px;font-size:13px;color:var(--text-secondary)">各监听器对应模块：离线传输（七）、音频导入（八）、云同步（九）、合并（十）、设备（十二）。</p></div>
+</section>
+
+<!-- ENUMS -->
+<section class="page" id="page-enums">
+  <div class="page-header"><div class="breadcrumb">扩展功能 / 十四、枚举参考</div><h2>枚举参考</h2><p class="subtitle">SDK 中所有关键枚举的值与含义</p></div>
+  <div class="card"><h3 class="card-title"><span class="icon">📊</span> ThingAudioRecordState（录音状态）</h3><table class="param-table"><thead><tr><th>值</th><th>含义</th></tr></thead><tbody><tr><td>0</td><td>未知</td></tr><tr><td>1</td><td>录音中</td></tr><tr><td>2</td><td>已暂停</td></tr><tr><td>3</td><td>已结束</td></tr></tbody></table></div>
+  <div class="card"><h3 class="card-title">ThingAudioRecordType（录音类型）</h3><table class="param-table"><thead><tr><th>值</th><th>含义</th></tr></thead><tbody><tr><td>0</td><td>电话录音</td></tr><tr><td>1</td><td>会议录音</td></tr><tr><td>2</td><td>同声传译</td></tr><tr><td>3</td><td>面对面翻译</td></tr><tr><td>5</td><td>音频导入</td></tr></tbody></table></div>
+  <div class="card"><h3 class="card-title">ThingAudioRecordChannel（录音通道）</h3><table class="param-table"><thead><tr><th>值</th><th>含义</th></tr></thead><tbody><tr><td>0</td><td>Opus/BLE 通道</td></tr><tr><td>1</td><td>系统蓝牙通道</td></tr><tr><td>2</td><td>手机麦克风通道</td></tr></tbody></table></div>
+  <details><summary>ThingAudioRecordTransferType / TransferChannel / BusinessType / CloudSyncType</summary><div class="detail-content">
+    <p><strong>ThingAudioRecordTransferType（转写类型）</strong></p><table class="param-table"><tbody><tr><td>0</td><td>录制完成后文件转写</td></tr><tr><td>1</td><td>录音过程中实时转写</td></tr></tbody></table>
+    <p style="margin-top:12px"><strong>ThingAudioRecordTransferChannel（离线传输通道）</strong></p><table class="param-table"><tbody><tr><td>0</td><td>未指定</td></tr><tr><td>1</td><td>BLE</td></tr><tr><td>2</td><td>AP</td></tr></tbody></table>
+    <p style="margin-top:12px"><strong>ThingAudioBusinessType（业务类型）</strong></p><table class="param-table"><tbody><tr><td>0</td><td>Note</td></tr><tr><td>1</td><td>Translate</td></tr></tbody></table>
+    <p style="margin-top:12px"><strong>ThingAudioCloudSyncType（云同步网络）</strong></p><table class="param-table"><tbody><tr><td>0</td><td>所有网络</td></tr><tr><td>1</td><td>仅 Wi-Fi</td></tr></tbody></table>
+  </div></details>
+</section>
+
+<!-- ========== ERROR CODES ========== -->
+<section class="page" id="page-errors">
+  <div class="page-header"><div class="breadcrumb">扩展功能 / 十五、错误码参考</div><h2>错误码参考</h2><p class="subtitle">底层 SDK 透传的错误码按功能域分段，可根据 error.code 分类处理</p></div>
+
+  <div class="callout"><div class="callout-title">📌 错误域</div><p><code>ThingAudioDetectManagerNativeErrorDomain</code>。错误码 <code>1</code> 表示底层 ThingModule 服务未注册；以下错误码由底层 SDK 透传。</p></div>
+
+  <details open><summary>通用错误（10001~10003）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10001</td><td>ThingAudioRecordInnerError</td><td>内部错误</td></tr>
+    <tr><td>10002</td><td>ThingAudioRecordPidNotAssociated</td><td>设备 PID 未关联 Agent</td></tr>
+    <tr><td>10003</td><td>ThingAudioRecordLanguageError</td><td>语言参数错误</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>网络/蓝牙传输错误（10011~10012）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10011</td><td>ThingAudioRecordNetworkError</td><td>网络错误</td></tr>
+    <tr><td>10012</td><td>ThingAudioRecordNotExistsError</td><td>录音记录不存在</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>超时错误（10021~10022）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10021</td><td>ThingAudioRecordTimeoutError</td><td>操作超时</td></tr>
+    <tr><td>10022</td><td>ThingAudioRecordCallHangUpError</td><td>电话挂断导致中断</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>文件操作错误（10031~10033）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10031</td><td>ThingAudioRecordCreateDirectoryError</td><td>创建目录失败</td></tr>
+    <tr><td>10032</td><td>ThingAudioRecordCreateFileError</td><td>创建文件失败</td></tr>
+    <tr><td>10033</td><td>ThingAudioRecordFileRemoteRemoveError</td><td>远端文件删除失败</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>操作状态错误（10041~10049）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10041</td><td>ThingAudioRecordOperateError</td><td>通用操作错误</td></tr>
+    <tr><td>10042</td><td>ThingAudioRecordAlreadyStartError</td><td>已开始，不能重复开始</td></tr>
+    <tr><td>10043</td><td>ThingAudioRecordAlreadyPauseError</td><td>已暂停，不能重复暂停</td></tr>
+    <tr><td>10044</td><td>ThingAudioRecordAlreadyResumeError</td><td>已恢复，不能重复恢复</td></tr>
+    <tr><td>10045</td><td>ThingAudioRecordAlreadyStopError</td><td>已停止，不能重复停止</td></tr>
+    <tr><td>10046</td><td>ThingAudioRecordAlreadyInRequestError</td><td>请求进行中，不能重复操作</td></tr>
+    <tr><td>10047</td><td>ThingAudioRecordDeviceAlreadyInRecordError</td><td>设备已在录音中</td></tr>
+    <tr><td>10048</td><td>ThingAudioRecordDeviceNotInRecordError</td><td>设备不在录音中</td></tr>
+    <tr><td>10049</td><td>ThingAudioRecordResumeNotInPauseError</td><td>未处于暂停状态，不能恢复</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>设备错误（10061~10064）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10061</td><td>ThingAudioRecordDeviceError</td><td>通用设备错误</td></tr>
+    <tr><td>10062</td><td>ThingAudioRecordDPError</td><td>设备不支持录音控制 DP</td></tr>
+    <tr><td>10063</td><td>ThingAudioRecordDPValueError</td><td>DP 值错误</td></tr>
+    <tr><td>10064</td><td>ThingAudioRecordDeviceNotAllConnect</td><td>设备未全部连接</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>音频错误（10071~10075）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10071</td><td>ThingAudioRecordAudioFormatError</td><td>音频格式错误</td></tr>
+    <tr><td>10072</td><td>ThingAudioRecordAudioNotExistsError</td><td>音频文件不存在</td></tr>
+    <tr><td>10073</td><td>ThingAudioRecordAudioEngineInitError</td><td>音频引擎初始化失败</td></tr>
+    <tr><td>10074</td><td>ThingAudioRecordAudioEngineResumeError</td><td>音频引擎恢复失败，需重新初始化</td></tr>
+    <tr><td>10075</td><td>ThingAudioRecordAudioEngineInterruptResumeError</td><td>音频引擎中断后恢复失败</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>付费/蓝牙/离线传输错误（10081~10097）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10081</td><td>ThingAudioRecordAudioPaymentRequired</td><td>需要付费/权益不足</td></tr>
+    <tr><td>10082</td><td>ThingAudioBlueToothConnectError</td><td>蓝牙连接错误</td></tr>
+    <tr><td>10083</td><td>ThingAudioRecordDeviceOfflineError</td><td>设备离线</td></tr>
+    <tr><td>10090</td><td>ThingAudioRecordFetchOfflineListFailed</td><td>获取离线文件列表失败</td></tr>
+    <tr><td>10091</td><td>ThingAudioRecordOpenHostspotFailed</td><td>开启热点失败</td></tr>
+    <tr><td>10092</td><td>ThingAudioRecordConnectHostspotFailed</td><td>连接热点失败</td></tr>
+    <tr><td>10093</td><td>ThingAudioRecordFetchHostspotRouterFailed</td><td>获取热点路由信息失败</td></tr>
+    <tr><td>10095</td><td>ThingAudioRecordTransmissionSpeedContinuouslyZero</td><td>传输速度持续为 0 超过 10 秒</td></tr>
+    <tr><td>10096</td><td>ThingAudioRecordWifiChangeAPWifiDisConnect</td><td>Wi-Fi 切换导致 AP 断开</td></tr>
+    <tr><td>10097</td><td>ThingAudioRecordNoteRecordingUnableTransform</td><td>Note 录音无法转换</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>翻译错误（10100~10101, -1002）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10100</td><td>ThingAudioTranslateCommonError</td><td>翻译通用错误</td></tr>
+    <tr><td>10101</td><td>ThingAudioTranslateTTSUrlError</td><td>TTS URL 错误</td></tr>
+    <tr><td>-1002</td><td>ThingAudioTranslateFileNotExistError</td><td>翻译文件不存在</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>热点连接错误（10300~10305）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10300</td><td>ThingAudioFileTransferAPLinkWithOtherDeviceError</td><td>热点被其他设备占用</td></tr>
+    <tr><td>10301</td><td>ThingAudioFileTransferCheckIPhoneWifiConfigError</td><td>检查 Wi-Fi 权限/局域网/网络是否正常</td></tr>
+    <tr><td>10302</td><td>ThingAudioFileTransferAPUsedOROpenVPNError</td><td>VPN 开启或 AP 通道被占用</td></tr>
+    <tr><td>10303</td><td>ThingAudioFileTransferAPLinkTimeOutRebootError</td><td>AP 连接超时，需重启设备</td></tr>
+    <tr><td>10304</td><td>ThingAudioFileTransferAppEnterBackgroudError</td><td>App 进入后台无法连接</td></tr>
+    <tr><td>10305</td><td>ThingAudioFileTransferIPhoneAuthorizationError</td><td>授权异常</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>云同步 — 上传错误（10200~10205）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10200</td><td>ThingAudioRecordRepeatUploadFileError</td><td>重复上传，请勿重复操作</td></tr>
+    <tr><td>10201</td><td>ThingAudioRecordUploadFileNotExistError</td><td>源文件不存在</td></tr>
+    <tr><td>10202</td><td>ThingAudioRecordEncryptFileError</td><td>加密文件失败</td></tr>
+    <tr><td>10203</td><td>ThingAudioRecordGetStorageConfigError</td><td>获取存储配置失败</td></tr>
+    <tr><td>10204</td><td>ThingAudioRecordUploadingError</td><td>上传过程错误</td></tr>
+    <tr><td>10205</td><td>ThingAudioRecordSyncResultToServerError</td><td>同步结果到服务端失败</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>云同步 — 下载错误（10206~10215）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>10206</td><td>ThingAudioRecordRepeatDownloadFileError</td><td>重复下载，请勿重复操作</td></tr>
+    <tr><td>10207</td><td>ThingAudioRecordGetDecryptKeyError</td><td>获取解密密钥失败</td></tr>
+    <tr><td>10208</td><td>ThingAudioRecordGetDownloadUrlError</td><td>获取下载地址失败</td></tr>
+    <tr><td>10209</td><td>ThingAudioRecordEncryptedFileNotExistError</td><td>加密文件不存在</td></tr>
+    <tr><td>10210</td><td>ThingAudioRecordDecryptFileError</td><td>解密文件失败</td></tr>
+    <tr><td>10211</td><td>ThingAudioRecordDownloadingError</td><td>下载过程错误</td></tr>
+    <tr><td>10212</td><td>ThingAudioRecordAudioFileNotExistError</td><td>文件记录不存在</td></tr>
+    <tr><td>10213</td><td>ThingAudioRecordSyncCloudSwitchNotOpen</td><td>云同步开关未开启，无法同步</td></tr>
+    <tr><td>10214</td><td>ThingAudioRecordSyncCloudSwitchNetworkTypeNotMatch</td><td>网络类型不匹配，无法同步</td></tr>
+    <tr><td>10215</td><td>ThingAudioRecordAudioFileSyncUnComplete</td><td>记录同步不完整</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>音频导入错误（20101~20118）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>20101</td><td>ThingAudioRecordFileImportFileCountExceeded</td><td>导入文件数量超过上限</td></tr>
+    <tr><td>20102</td><td>ThingAudioRecordFileImportFileSizeTooLarge</td><td>文件过大</td></tr>
+    <tr><td>20103</td><td>ThingAudioRecordFileImportFormatError</td><td>格式异常</td></tr>
+    <tr><td>20104</td><td>ThingAudioRecordFileImportInsufficientStorage</td><td>空间不足</td></tr>
+    <tr><td>20105</td><td>ThingAudioRecordFileImportFileNotFound</td><td>文件不存在</td></tr>
+    <tr><td>20106</td><td>ThingAudioRecordFileImportFileAttributesChanged</td><td>文件属性改变</td></tr>
+    <tr><td>20107</td><td>ThingAudioRecordFileImportFileDurationTooLong</td><td>文件时长过长</td></tr>
+    <tr><td>20108</td><td>ThingAudioRecordFileImportSDKInitFailed</td><td>SDK 初始化失败</td></tr>
+    <tr><td>20109</td><td>ThingAudioRecordFileImportDecodeStartFailed</td><td>开始解码音频失败</td></tr>
+    <tr><td>20110</td><td>ThingAudioRecordFileImportFileFormatErrorCannotDecode</td><td>文件格式错误无法解码</td></tr>
+    <tr><td>20111</td><td>ThingAudioRecordFileImportDecodeInterruptedByFileError</td><td>解码中文件异常中断</td></tr>
+    <tr><td>20112</td><td>ThingAudioRecordFileImportAbnormallyInterrupted</td><td>导入任务异常中断</td></tr>
+    <tr><td>20113</td><td>ThingAudioRecordFileImportMP3CreateFailed</td><td>MP3 创建失败</td></tr>
+    <tr><td>20114</td><td>ThingAudioRecordFileImportUserCanceled</td><td>用户取消导入</td></tr>
+    <tr><td>20115</td><td>ThingAudioRecordFileImportAlreadyStarted</td><td>分享导入已开始，无法重复导入</td></tr>
+    <tr><td>20116</td><td>ThingAudioRecordFileShareImportRecordingStarted</td><td>录音已开始，无法导入</td></tr>
+    <tr><td>20117</td><td>ThingAudioRecordFileShareImportExistsCanResumeTask</td><td>存在可恢复的导入任务</td></tr>
+    <tr><td>20118</td><td>ThingAudioRecordFileShareImportAbnormal</td><td>通用分享导入异常</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>分享错误（20201~20204）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>20201</td><td>ThingAudioRecordFileShareSensitiveWordDetected</td><td>存在敏感内容</td></tr>
+    <tr><td>20202</td><td>ThingAudioRecordFileShareFailed</td><td>分享通用错误</td></tr>
+    <tr><td>20203</td><td>ThingAudioRecordFileSharePasswordInvalid</td><td>密码位数错误</td></tr>
+    <tr><td>20204</td><td>ThingAudioRecordFileShareTranscriptRequired</td><td>缺少转写内容</td></tr>
+  </tbody></table></div></details>
+
+  <details><summary>合并错误（20220~20230）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>错误码</th><th>枚举值</th><th>说明</th></tr></thead><tbody>
+    <tr><td>20220</td><td>ThingAudioRecordMergeEmptyIds</td><td>入参 recordIds 为空</td></tr>
+    <tr><td>20221</td><td>ThingAudioRecordMergeFailedError</td><td>通用合并失败</td></tr>
+    <tr><td>20222</td><td>ThingAudioRecordMergeNetworkUnavailable</td><td>网络不可用</td></tr>
+    <tr><td>20223</td><td>ThingAudioRecordMergeFileNotExist</td><td>本地文件不存在</td></tr>
+    <tr><td>20224</td><td>ThingAudioRecordMergeUploadRecordsFailed</td><td>下载/上传记录失败</td></tr>
+    <tr><td>20225</td><td>ThingAudioRecordMergeReportFailed</td><td>合并上报失败</td></tr>
+    <tr><td>20226</td><td>ThingAudioRecordMergeRecordNotFound</td><td>录音记录未找到</td></tr>
+    <tr><td>20227</td><td>ThingAudioRecordMergeUnknownError</td><td>未知错误</td></tr>
+    <tr><td>20229</td><td>ThingAudioRecordMergeCreateRecordFailed</td><td>创建合并 RecordFile 失败</td></tr>
+    <tr><td>20230</td><td>ThingAudioRecordMergeMergeCanceled</td><td>取消合并</td></tr>
+  </tbody></table></div></details>
+</section>
+
+</div><!-- /main -->
+<script>
+// 关闭 startOnLoad：避免 Mermaid 在 display:none 的隐藏页面上渲染，
+// 隐藏容器宽高为 0 会导致布局计算出 NaN，报 translate(undefined, NaN)。
+mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: 'neutral', flowchart: { curve: 'basis' }, themeVariables: { fontSize: '14px', fontFamily: '-apple-system, sans-serif' } });
+
+// 侧边栏导航绑定
+document.querySelectorAll('.nav-item').forEach(function(item) {
+  item.addEventListener('click', function() { navTo(this.dataset.page); });
+});
+
+// 仅渲染指定页面内、尚未渲染过的 mermaid 图。
+// 先用 requestAnimationFrame 等一帧，确保页面已 display:block、有真实宽高，再渲染。
+function renderMermaidInPage(pageEl) {
+  if (!pageEl) return;
+  requestAnimationFrame(function() {
+    var nodes = pageEl.querySelectorAll('.mermaid:not([data-processed])');
+    if (nodes.length === 0) return;
+    nodes.forEach(function(el) {
+      try {
+        mermaid.run({ nodes: [el] });
+        el.setAttribute('data-processed', 'true');
+      } catch(e) {}
+    });
+  });
+}
+
+function navTo(pageId) {
+  document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+  var target = document.getElementById('page-' + pageId);
+  if (target) target.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+  var navItem = document.querySelector('.nav-item[data-page="' + pageId + '"]');
+  if (navItem) navItem.classList.add('active');
+  document.getElementById('sidebar').classList.remove('open');
+  window.scrollTo(0, 0);
+  // 页面可见后再渲染其中的 mermaid 图
+  renderMermaidInPage(target);
+}
+
+function toggleMethod(header) { header.parentElement.classList.toggle('open'); }
+
+document.getElementById('sidebar-toggle').addEventListener('click', function() {
+  document.getElementById('sidebar').classList.toggle('open');
+});
+
+// 初始页面加载后渲染当前可见页面（概览页）的 mermaid 图
+window.addEventListener('load', function() {
+  renderMermaidInPage(document.querySelector('.page.active'));  if (typeof hljs !== 'undefined') { try { hljs.highlightAll(); } catch(e) {} }
+});
+</script>
+</body>
+</html>

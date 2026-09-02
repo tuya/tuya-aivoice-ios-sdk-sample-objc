@@ -13,7 +13,7 @@
 static const CGFloat kDetailWaveformBarSpacing = 2.0;
 static const CGFloat kDetailWaveformBarMinWidth = 2.0;
 
-@interface NativeRecordDetailViewController () <AVAudioPlayerDelegate>
+@interface NativeRecordDetailViewController () <AVAudioPlayerDelegate, ThingAudioRecordSyncManagerDelegate>
 
 @property (nonatomic, copy) NSString *recordId;
 @property (nonatomic, strong, nullable) ThingAudioRecordFile *file;
@@ -40,6 +40,8 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
 @property (nonatomic, strong) UIStackView *transferContainer;
 @property (nonatomic, strong) UILabel *summaryStatusLabel;
 @property (nonatomic, strong) UITextView *summaryTextView;
+@property (nonatomic, strong) UILabel *translateStatusLabel;
+@property (nonatomic, strong) UITextView *translateTextView;
 
 // 操作按钮
 @property (nonatomic, strong) UIButton *transcribeButton;
@@ -51,6 +53,7 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
 
 // 状态
 @property (nonatomic, assign) BOOL processing;
+@property (nonatomic, assign) BOOL syncListening;
 
 @end
 
@@ -81,14 +84,125 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
 
     self.waveformBars = [NSMutableArray array];
     [self setupUI];
+    [self startSyncListeningIfNeeded];
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [self startSyncListeningIfNeeded];
     [self loadDetail];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
+    [self stopSyncListeningIfNeeded];
     [self stopPlaybackTimer];
     [self.audioPlayer stop];
     self.audioPlayer = nil;
+}
+
+- (void)dealloc {
+    [self stopSyncListeningIfNeeded];
+}
+
+#pragma mark - Sync listener
+
+- (void)startSyncListeningIfNeeded {
+    if (self.syncListening) return;
+    [[NativeAudioService sharedInstance] addSyncListener:self];
+    self.syncListening = YES;
+}
+
+- (void)stopSyncListeningIfNeeded {
+    if (!self.syncListening) return;
+    [[NativeAudioService sharedInstance] removeSyncListener:self];
+    self.syncListening = NO;
+}
+
+- (void)uploadStatusResult:(ThingFileUpdateStatusResult *)result {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self handleFileUpdateStatusResult:result];
+    });
+}
+
+- (void)fileListUpdateResult:(ThingFileListUpdateResult *)result {
+    // 列表级同步事件不是某一条 AI 任务的完成事件；同步结束或失败时
+    // 重新读取详情，确保页面状态来自本地数据库的最新快照。
+    if (result.syncStatus == 1) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self loadDetail];
+    });
+}
+
+- (void)pushInfoDidRefresh:(ThingAudioPushRouteInfoConfig *)config {
+    if (![config.pushType isEqualToString:@"RecordTranscribe"] ||
+        ![config.recordId isEqualToString:self.recordId]) {
+        return;
+    }
+    // 推送只作为刷新信号，最终状态仍以详情和 uploadStatusResult 为准。
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self loadDetail];
+    });
+}
+
+- (void)handleFileUpdateStatusResult:(ThingFileUpdateStatusResult *)result {
+    if (self.recordId.length == 0 || result.items.count == 0) return;
+    for (ThingFileUpdateStatusItem *item in result.items) {
+        if (![item.recordId isEqualToString:self.recordId]) continue;
+        [self applySyncStatusItem:item];
+    }
+}
+
+- (void)applySyncStatusItem:(ThingFileUpdateStatusItem *)item {
+    if (self.file) {
+        self.file.transfer = (int)item.transferStatus;
+        self.file.summary = (int)item.summaryStatus;
+        self.file.tranlateState = [self fileTranslateStateFromSyncStatus:item.translateStatus];
+    }
+
+    [self updateInfoWithSyncItem:item];
+    [self updateTransferStatusFromSync:item.transferStatus];
+    [self updateSummaryStatus:(int)item.summaryStatus];
+    [self updateTranslateStatusFromSync:item.translateStatus];
+    [self updateProcessingButtons];
+
+    long long fileId = self.file.fileId;
+    if (fileId <= 0) return;
+
+    if (item.transferStatus == 2) {
+        [self fetchPlainTranscriptionWithFileId:fileId];
+    } else if (item.transferStatus == 3) {
+        [self showFamilyMessageWithTitle:@"转写失败" message:@"底层同步事件返回转写失败，可重新发起转写。"];
+    }
+
+    if (item.summaryStatus == 3) {
+        [self fetchSummaryWithFileId:fileId];
+    } else if (item.summaryStatus == 4) {
+        [self showFamilyMessageWithTitle:@"总结失败" message:@"底层同步事件返回总结失败，可重新发起总结。"];
+    }
+
+    if (item.translateStatus == 2) {
+        [self fetchPlainTranslationWithFileId:fileId];
+    } else if (item.translateStatus == 3) {
+        [self showFamilyMessageWithTitle:@"翻译失败" message:@"底层同步事件返回翻译失败，可重新发起翻译。"];
+    }
+}
+
+- (void)updateInfoWithSyncItem:(ThingFileUpdateStatusItem *)item {
+    if (!self.file) return;
+    self.infoLabel.text = [NSString stringWithFormat:
+                           @"名称：%@\n"
+                           @"时长：%@\n"
+                           @"录音时间：%@\n"
+                           @"录音类型：%@\n"
+                           @"转写状态：%@  ·  总结状态：%@  ·  翻译状态：%@",
+                           self.file.name.length > 0 ? self.file.name : @"-",
+                           [self durationStringFromMs:self.file.duration],
+                           [self dateStringFromSeconds:self.file.recordTime],
+                           [self recordTypeString:self.file.recordType],
+                           [self syncTransferStatusString:item.transferStatus],
+                           [self summaryStatusString:(int)item.summaryStatus],
+                           [self syncTranslateStatusString:item.translateStatus]];
 }
 
 #pragma mark - UI
@@ -121,6 +235,7 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
     [self setupPlaybackCard];
     [self setupTransferCard];
     [self setupSummaryCard];
+    [self setupTranslateCard];
     [self setupActionsCard];
 }
 
@@ -239,6 +354,30 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
     [self.contentStack addArrangedSubview:[self cardViewWithTitle:@"总结" content:content]];
 }
 
+- (void)setupTranslateCard {
+    self.translateStatusLabel = [[UILabel alloc] init];
+    self.translateStatusLabel.font = [UIFont systemFontOfSize:13];
+    self.translateStatusLabel.textColor = self.familySecondaryTextColor;
+    self.translateStatusLabel.text = @"-";
+
+    self.translateTextView = [[UITextView alloc] init];
+    self.translateTextView.editable = NO;
+    self.translateTextView.selectable = YES;
+    self.translateTextView.backgroundColor = [self.familySecondaryTextColor colorWithAlphaComponent:0.08];
+    self.translateTextView.layer.cornerRadius = 10;
+    self.translateTextView.textContainerInset = UIEdgeInsetsMake(10, 10, 10, 10);
+    self.translateTextView.font = [UIFont systemFontOfSize:15];
+    self.translateTextView.textColor = self.familyPrimaryTextColor;
+    self.translateTextView.text = @"";
+    [self.translateTextView.heightAnchor constraintGreaterThanOrEqualToConstant:80].active = YES;
+
+    UIStackView *content = [[UIStackView alloc] initWithArrangedSubviews:@[self.translateStatusLabel, self.translateTextView]];
+    content.axis = UILayoutConstraintAxisVertical;
+    content.spacing = 8;
+
+    [self.contentStack addArrangedSubview:[self cardViewWithTitle:@"翻译" content:content]];
+}
+
 - (void)setupActionsCard {
     self.transcribeButton = [self actionButtonWithTitle:@"发起转写" selector:@selector(transcribeButtonTapped)];
     self.summarizeButton = [self actionButtonWithTitle:@"发起总结" selector:@selector(summarizeButtonTapped)];
@@ -303,6 +442,8 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
                            [self translateStatusString:f.tranlateState]];
     [self updateTransferStatus:f.transfer];
     [self updateSummaryStatus:f.summary];
+    [self updateTranslateStatus:f.tranlateState];
+    [self updateProcessingButtons];
 }
 
 - (void)loadTransferAndSummary {
@@ -310,33 +451,70 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
     long long fileId = self.file.fileId;
     __weak typeof(self) weakSelf = self;
 
+    // 只有正式转写成功后，才读取转写/翻译最终结果；实时 ASR 仅用于录音过程展示。
+    if (self.file.transfer != 2) {
+        [self clearTransferContentWithPlaceholder:@"（等待正式转写完成）"];
+        self.translateTextView.text = self.file.tranlateState == 2 ? @"（翻译处理中）" : @"（暂无翻译内容）";
+    }
+
     // 转写：优先取 ASR 表（实时转写产生的分句数据，含时间戳）。
     // 若 ASR 表为空（如离线转写的录音），fallback 到整段文本接口。
-    [[NativeAudioService sharedInstance] fetchTranscriptionSentencesWithFileId:fileId success:^(NSArray<ThingAudioRecordAsrResult *> *list) {
+    if (self.file.transfer == 2) {
+        [[NativeAudioService sharedInstance] fetchTranscriptionSentencesWithFileId:fileId success:^(NSArray<ThingAudioRecordAsrResult *> *list) {
         __strong typeof(weakSelf) self = weakSelf;
         if (!self) return;
         if (list.count > 0) {
             [self populateTransferSentences:list];
+            [self populateTranslationSentences:list];
+            if (self.file.tranlateState == 3 && self.translateTextView.text.length == 0) {
+                [self fetchPlainTranslationWithFileId:fileId];
+            } else if (self.translateTextView.text.length == 0) {
+                self.translateTextView.text = @"（暂无翻译内容）";
+            }
         } else {
             // ASR 表为空，fallback 到整段转写文本。
             [self fetchPlainTranscriptionWithFileId:fileId];
+            [self loadTranslationIfAvailableWithFileId:fileId];
         }
     } failure:^(NSError *error) {
+        (void)error;
         __strong typeof(weakSelf) self = weakSelf;
         if (!self) return;
         [self fetchPlainTranscriptionWithFileId:fileId];
-    }];
+        [self loadTranslationIfAvailableWithFileId:fileId];
+        }];
+    }
 
-    // 总结：纯文本展示。
-    [[NativeAudioService sharedInstance] fetchSummaryWithFileId:fileId success:^(NSString *text) {
+    // 总结：只有 summaryStatus=3（成功）时查询最终文本。
+    if (self.file.summary == 3) {
+        [[NativeAudioService sharedInstance] fetchSummaryWithFileId:fileId success:^(NSString *text) {
         __strong typeof(weakSelf) self = weakSelf;
         if (!self) return;
         self.summaryTextView.text = text.length > 0 ? text : @"（暂无总结内容）";
     } failure:^(NSError *error) {
+        (void)error;
         __strong typeof(weakSelf) self = weakSelf;
         if (!self) return;
         self.summaryTextView.text = @"";
-    }];
+        }];
+    } else if (self.file.summary == 2) {
+        self.summaryTextView.text = @"（总结处理中）";
+    } else {
+        self.summaryTextView.text = @"（暂无总结内容）";
+    }
+}
+
+- (void)clearTransferContentWithPlaceholder:(NSString *)placeholder {
+    for (UIView *view in self.transferContainer.arrangedSubviews) {
+        [self.transferContainer removeArrangedSubview:view];
+        [view removeFromSuperview];
+    }
+    UILabel *label = [[UILabel alloc] init];
+    label.text = placeholder;
+    label.font = [UIFont systemFontOfSize:14];
+    label.textColor = self.familySecondaryTextColor;
+    label.numberOfLines = 0;
+    [self.transferContainer addArrangedSubview:label];
 }
 
 /// 用 ASR 分句列表填充转写容器：每句一行，左侧时间戳 + 右侧文本。
@@ -358,6 +536,7 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
         plainLabel.numberOfLines = 0;
         [self.transferContainer addArrangedSubview:plainLabel];
     } failure:^(NSError *error) {
+        (void)error;
         __strong typeof(weakSelf) self = weakSelf;
         if (!self) return;
         for (UIView *v in self.transferContainer.arrangedSubviews) {
@@ -369,6 +548,42 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
         errorLabel.font = [UIFont systemFontOfSize:14];
         errorLabel.textColor = self.familySecondaryTextColor;
         [self.transferContainer addArrangedSubview:errorLabel];
+    }];
+}
+
+- (void)loadTranslationIfAvailableWithFileId:(long long)fileId {
+    if (self.file.tranlateState == 3) {
+        [self fetchPlainTranslationWithFileId:fileId];
+    } else {
+        self.translateTextView.text = @"（暂无翻译内容）";
+    }
+}
+
+- (void)fetchPlainTranslationWithFileId:(long long)fileId {
+    __weak typeof(self) weakSelf = self;
+    [[NativeAudioService sharedInstance] fetchTranscriptionWithFileId:fileId success:^(NSString *text) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+        self.translateTextView.text = text.length > 0 ? text : @"（暂无翻译内容）";
+    } failure:^(NSError *error) {
+        (void)error;
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+        self.translateTextView.text = @"";
+    }];
+}
+
+- (void)fetchSummaryWithFileId:(long long)fileId {
+    __weak typeof(self) weakSelf = self;
+    [[NativeAudioService sharedInstance] fetchSummaryWithFileId:fileId success:^(NSString *text) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+        self.summaryTextView.text = text.length > 0 ? text : @"（暂无总结内容）";
+    } failure:^(NSError *error) {
+        (void)error;
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self) return;
+        self.summaryTextView.text = @"";
     }];
 }
 
@@ -394,6 +609,15 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
         if (text.length == 0) continue;
         [self.transferContainer addArrangedSubview:[self transferSentenceRowWithTimestamp:sentence.beginTime text:text]];
     }
+}
+
+- (void)populateTranslationSentences:(NSArray<ThingAudioRecordAsrResult *> *)sentences {
+    NSMutableArray<NSString *> *lines = [NSMutableArray array];
+    for (ThingAudioRecordAsrResult *sentence in sentences) {
+        if (sentence.translate.length == 0) continue;
+        [lines addObject:[NSString stringWithFormat:@"%@  %@", [self timeStringFromMs:sentence.beginTime], sentence.translate]];
+    }
+    self.translateTextView.text = lines.count > 0 ? [lines componentsJoinedByString:@"\n\n"] : @"";
 }
 
 /// 构建单句行：左侧时间戳（品牌色小字）+ 右侧转写文本。
@@ -593,41 +817,59 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
 
 - (void)processWithTaskType:(NSInteger)taskType button:(UIButton *)button name:(NSString *)name {
     if (self.processing || !self.file) return;
+    if ((taskType == 1 || taskType == 2) && self.file.transfer != 2) {
+        [self showFamilyMessageWithTitle:[NSString stringWithFormat:@"无法发起%@", name]
+                                 message:@"总结和翻译依赖正式转写，请先完成转写。"];
+        return;
+    }
     self.processing = YES;
-    [self setProcessingButtonsEnabled:NO];
+    [self updateProcessingButtons];
     NSString *originalTitle = [button titleForState:UIControlStateNormal];
     [button setTitle:[NSString stringWithFormat:@"%@中…", name] forState:UIControlStateNormal];
 
-    NSString *targetLang = self.file.targetLanguage.length > 0 ? self.file.targetLanguage : @"en";
+    ThingAudioRecordUploadFileParams *params = [[ThingAudioRecordUploadFileParams alloc] init];
+    params.fileId = self.file.fileId;
+    params.recordId = self.file.recordId;
+    params.language = self.file.originalLanguage.length > 0 ? self.file.originalLanguage : @"zh";
+    params.enableSpeaker = NO;
+    if (taskType == 1) {
+        // 总结语言和总结模板属于请求参数；没有选择模板时传 nil，使用云端默认模板。
+        params.summaryLang = self.file.originalLanguage.length > 0 ? self.file.originalLanguage : @"zh";
+    } else if (taskType == 2) {
+        params.transLang = self.file.targetLanguage.length > 0 ? self.file.targetLanguage : @"en";
+    }
     __weak typeof(self) weakSelf = self;
-    [[NativeAudioService sharedInstance] processRecordWithFileId:self.file.fileId
-                                                        recordId:self.file.recordId
+    [[NativeAudioService sharedInstance] processRecordWithParams:params
                                                         taskType:taskType
-                                                 translationLang:(taskType == 2 ? targetLang : nil)
-                                                        success:^(NSString *taskId) {
+                                                         success:^(NSString *taskId) {
         __strong typeof(weakSelf) self = weakSelf;
         if (!self) return;
         [button setTitle:originalTitle forState:UIControlStateNormal];
+        self.processing = NO;
+        [self markTaskTypeProcessing:taskType];
+        [self updateProcessingButtons];
+        NSString *taskMessage = taskId.length > 0
+            ? [NSString stringWithFormat:@"任务 ID：%@\n最终结果以同步监听事件为准。", taskId]
+            : @"最终结果以同步监听事件为准。";
         [self showFamilyMessageWithTitle:[NSString stringWithFormat:@"%@任务已发起", name]
-                                 message:@"处理需要一些时间，请稍后返回列表刷新查看结果。"];
-        // 延迟 2s 后重新拉取详情，给底层入库时间。
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            __strong typeof(weakSelf) self = weakSelf;
-            if (!self) return;
-            self.processing = NO;
-            [self setProcessingButtonsEnabled:YES];
-            [self loadDetail];
-        });
-    } progress:^(NSInteger progress) {
+                                 message:taskMessage];
+    } progress:^(double progress, int status) {
         __strong typeof(weakSelf) self = weakSelf;
         if (!self) return;
-        [button setTitle:[NSString stringWithFormat:@"%@ %ld%%", name, (long)progress] forState:UIControlStateNormal];
+        NSString *statusText = @"上传中";
+        if (status == ThingAudioRecordProcessStatusEnd) {
+            statusText = @"上传完成";
+        } else if (status == ThingAudioRecordProcessStatusCancel) {
+            statusText = @"上传已取消";
+        }
+        [button setTitle:[NSString stringWithFormat:@"%@ %.0f%% %@", name, progress, statusText]
+                forState:UIControlStateNormal];
     } failure:^(NSError *error) {
         __strong typeof(weakSelf) self = weakSelf;
         if (!self) return;
         [button setTitle:originalTitle forState:UIControlStateNormal];
         self.processing = NO;
-        [self setProcessingButtonsEnabled:YES];
+        [self updateProcessingButtons];
         [self showFamilyMessageWithTitle:[NSString stringWithFormat:@"%@失败", name] message:error.localizedDescription];
     }];
 }
@@ -638,6 +880,32 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
     self.translateButton.enabled = enabled;
 }
 
+- (void)updateProcessingButtons {
+    if (self.processing || !self.file) {
+        [self setProcessingButtonsEnabled:NO];
+        return;
+    }
+
+    self.transcribeButton.enabled = (self.file.transfer != 1);
+    self.summarizeButton.enabled = (self.file.transfer == 2 && self.file.summary != 2);
+    self.translateButton.enabled = (self.file.transfer == 2 && self.file.tranlateState != 2);
+}
+
+- (void)markTaskTypeProcessing:(NSInteger)taskType {
+    if (!self.file) return;
+    if (taskType == 0) {
+        self.file.transfer = 1;
+        [self updateTransferStatus:self.file.transfer];
+    } else if (taskType == 1) {
+        self.file.summary = 2;
+        [self updateSummaryStatus:self.file.summary];
+    } else if (taskType == 2) {
+        self.file.tranlateState = 2;
+        [self updateTranslateStatus:self.file.tranlateState];
+    }
+    [self populateInfo];
+}
+
 #pragma mark - Status helpers
 
 - (void)updateTransferStatus:(int)transfer {
@@ -646,6 +914,18 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
 
 - (void)updateSummaryStatus:(int)summary {
     self.summaryStatusLabel.text = [NSString stringWithFormat:@"状态：%@", [self summaryStatusString:summary]];
+}
+
+- (void)updateTranslateStatus:(int)translate {
+    self.translateStatusLabel.text = [NSString stringWithFormat:@"状态：%@", [self translateStatusString:translate]];
+}
+
+- (void)updateTransferStatusFromSync:(NSInteger)transfer {
+    self.transferStatusLabel.text = [NSString stringWithFormat:@"状态：%@", [self syncTransferStatusString:transfer]];
+}
+
+- (void)updateTranslateStatusFromSync:(NSInteger)translate {
+    self.translateStatusLabel.text = [NSString stringWithFormat:@"状态：%@", [self syncTranslateStatusString:translate]];
 }
 
 - (NSString *)transferStatusString:(int)status {
@@ -666,6 +946,36 @@ static const CGFloat kDetailWaveformBarMinWidth = 2.0;
         case 4: return @"总结失败";
         case 0:
         default: return @"-";
+    }
+}
+
+- (NSString *)syncTransferStatusString:(NSInteger)status {
+    switch (status) {
+        case 1: return @"转写中";
+        case 2: return @"已转写";
+        case 3: return @"转写失败";
+        case 0:
+        default: return @"未转写";
+    }
+}
+
+- (NSString *)syncTranslateStatusString:(NSInteger)status {
+    switch (status) {
+        case 1: return @"翻译中";
+        case 2: return @"已翻译";
+        case 3: return @"翻译失败";
+        case 0:
+        default: return @"未翻译";
+    }
+}
+
+- (int)fileTranslateStateFromSyncStatus:(NSInteger)status {
+    switch (status) {
+        case 1: return 2;
+        case 2: return 3;
+        case 3: return 4;
+        case 0:
+        default: return 1;
     }
 }
 

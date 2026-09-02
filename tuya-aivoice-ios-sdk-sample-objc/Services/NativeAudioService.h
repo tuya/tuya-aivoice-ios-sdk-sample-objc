@@ -16,9 +16,12 @@ NS_ASSUME_NONNULL_BEGIN
 @class ThingAudioRecordFile;
 @class ThingAudioRecordSearchMixResultItem;
 @protocol ThingAudioRecordManagerDelegate;
+@protocol ThingAudioRecordSyncManagerDelegate;
 
 /// 失败回调类型。
 typedef void(^NativeAudioFailure)(NSError *error);
+/// 文件上传进度回调。progress 为上传进度值，status 为底层上传状态。
+typedef void(^NativeAudioProcessProgress)(double progress, int status);
 
 @interface NativeAudioService : NSObject
 
@@ -58,6 +61,12 @@ typedef void(^NativeAudioFailure)(NSError *error);
 /// 移除录音事件监听器，必须与注册时使用同一实例和 deviceId。
 - (void)removeRecordListener:(id<ThingAudioRecordManagerDelegate>)listener deviceId:(NSString *)deviceId;
 
+/// 注册转写/总结/翻译等文件同步状态监听器（全局），转发给底层 Manager。
+- (void)addSyncListener:(id<ThingAudioRecordSyncManagerDelegate>)listener;
+
+/// 移除文件同步状态监听器，必须与注册时使用同一实例。
+- (void)removeSyncListener:(id<ThingAudioRecordSyncManagerDelegate>)listener;
+
 #pragma mark - File list & search
 
 /// 查询全部已入库录音（按 recordTime 降序）。
@@ -96,13 +105,20 @@ typedef void(^NativeAudioFailure)(NSError *error);
 
 #pragma mark - Offline processing (transcribe / summarize / translate)
 
+/// 使用完整原生参数发起离线转写、总结或翻译任务。
+- (void)processRecordWithParams:(ThingAudioRecordUploadFileParams *)params
+                       taskType:(NSInteger)taskType
+                        success:(nullable void(^)(NSString * _Nullable taskId))success
+                       progress:(nullable NativeAudioProcessProgress)progress
+                        failure:(nullable NativeAudioFailure)failure;
+
 /// 发起离线处理任务。taskType: 0 转写，1 总结，2 翻译。
 - (void)processRecordWithFileId:(long long)fileId
                        recordId:(NSString *)recordId
                        taskType:(NSInteger)taskType
                 translationLang:(nullable NSString *)translationLang
-                        success:(nullable void(^)(NSString *taskId))success
-                        progress:(nullable void(^)(NSInteger progress))progress
+                        success:(nullable void(^)(NSString * _Nullable taskId))success
+                        progress:(nullable NativeAudioProcessProgress)progress
                          failure:(nullable NativeAudioFailure)failure;
 
 @end

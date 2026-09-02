@@ -9,6 +9,7 @@
 #import <ThingSmartBaseKit/ThingSmartUser.h>
 #import <ThingModuleManager/ThingModuleManager.h>
 #import <ThingModuleServices/ThingFeedBackProtocol.h>
+#import "NativePerfusionViewController.h"
 
 @interface MineViewController ()
 
@@ -88,7 +89,8 @@
     UIButton *deviceButton = [self menuButtonWithTitle:@"设备管理" detail:@"名称、状态与解绑" action:@selector(openDeviceManagement)];
     UIButton *nicknameButton = [self menuButtonWithTitle:@"修改昵称" detail:@"展示在家庭成员列表中" action:@selector(editNickname)];
     UIButton *logButton = [self menuButtonWithTitle:@"上传诊断日志" detail:@"通过涂鸦反馈服务提交" action:@selector(uploadDiagnosticLog)];
-    UIStackView *menuStack = [[UIStackView alloc] initWithArrangedSubviews:@[deviceButton, nicknameButton, logButton]];
+    UIButton *debugButton = [self menuButtonWithTitle:@"灌流调试" detail:@"本地音频灌流，导出 ASR/翻译结果" action:@selector(openDebugTool)];
+    UIStackView *menuStack = [[UIStackView alloc] initWithArrangedSubviews:@[deviceButton, nicknameButton, logButton, debugButton]];
     menuStack.axis = UILayoutConstraintAxisVertical; menuStack.spacing = 1; menuStack.backgroundColor = [self familyHairlineColor]; menuStack.translatesAutoresizingMaskIntoConstraints = NO;
     [self.menuCard addSubview:menuStack];
 
@@ -128,7 +130,7 @@
         [self.menuCard.topAnchor constraintEqualToAnchor:self.profileCard.bottomAnchor constant:18],
         [self.menuCard.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:20],
         [self.menuCard.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-20],
-        [self.menuCard.heightAnchor constraintEqualToConstant:198],
+        [self.menuCard.heightAnchor constraintEqualToConstant:263],
         [menuStack.topAnchor constraintEqualToAnchor:self.menuCard.topAnchor],
         [menuStack.leadingAnchor constraintEqualToAnchor:self.menuCard.leadingAnchor],
         [menuStack.trailingAnchor constraintEqualToAnchor:self.menuCard.trailingAnchor],
@@ -154,6 +156,12 @@
 }
 
 - (void)openDeviceManagement { [self.navigationController pushViewController:[DeviceManagementViewController new] animated:YES]; }
+
+- (void)openDebugTool {
+    NativePerfusionViewController *debugVC = [[NativePerfusionViewController alloc] init];
+    debugVC.hidesBottomBarWhenPushed = YES;
+    [self.navigationController pushViewController:debugVC animated:YES];
+}
 
 - (void)editNickname {
     __weak typeof(self) weakSelf = self;

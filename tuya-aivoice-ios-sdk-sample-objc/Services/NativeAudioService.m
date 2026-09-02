@@ -97,6 +97,14 @@ static void native_main(void(^block)(void)) {
     [self.manager removeRecordListener:listener deviceId:deviceId];
 }
 
+- (void)addSyncListener:(id<ThingAudioRecordSyncManagerDelegate>)listener {
+    [self.manager addSyncListener:listener];
+}
+
+- (void)removeSyncListener:(id<ThingAudioRecordSyncManagerDelegate>)listener {
+    [self.manager removeSyncListener:listener];
+}
+
 #pragma mark - File list & search
 
 - (void)fetchAllRecordsWithSuccess:(nullable void(^)(NSArray<ThingAudioRecordFile *> *list))success
@@ -173,12 +181,39 @@ static void native_main(void(^block)(void)) {
 
 #pragma mark - Offline processing
 
+- (void)processRecordWithParams:(ThingAudioRecordUploadFileParams *)params
+                       taskType:(NSInteger)taskType
+                        success:(nullable void(^)(NSString * _Nullable taskId))success
+                       progress:(nullable NativeAudioProcessProgress)progress
+                        failure:(nullable NativeAudioFailure)failure {
+    if (params == nil || params.fileId <= 0 || params.recordId.length == 0 ||
+        taskType < 0 || taskType > 2) {
+        NSError *error = [NSError errorWithDomain:@"NativeAudioService"
+                                             code:1000
+                                         userInfo:@{NSLocalizedDescriptionKey: @"转写/总结/翻译参数无效"}];
+        native_main(^{ if (failure) failure(error); });
+        return;
+    }
+
+    // 转写任务同步返回 taskId；总结和翻译没有任务 ID。
+    __block NSString *taskId = nil;
+    taskId = [self.manager processRecordTransferResult:params
+                                               taskType:taskType
+                                               progress:^(double value, int status) {
+        native_main(^{ if (progress) progress(value, status); });
+    } success:^{
+        native_main(^{ if (success) success(taskId); });
+    } failure:^(NSError *error) {
+        native_main(^{ if (failure) failure(error); });
+    }];
+}
+
 - (void)processRecordWithFileId:(long long)fileId
                        recordId:(NSString *)recordId
                        taskType:(NSInteger)taskType
                 translationLang:(nullable NSString *)translationLang
-                        success:(nullable void(^)(NSString *taskId))success
-                        progress:(nullable void(^)(NSInteger progress))progress
+                        success:(nullable void(^)(NSString * _Nullable taskId))success
+                        progress:(nullable NativeAudioProcessProgress)progress
                          failure:(nullable NativeAudioFailure)failure {
     ThingAudioRecordUploadFileParams *params = [[ThingAudioRecordUploadFileParams alloc] init];
     params.fileId = fileId;
@@ -186,16 +221,11 @@ static void native_main(void(^block)(void)) {
     if (translationLang.length > 0) {
         params.transLang = translationLang;
     }
-    // SDK 的 success 是 void(^)(void)，taskId 由方法返回值同步给出。
-    NSString *taskId = [self.manager processRecordTransferResult:params
-                                                        taskType:taskType
-                                                        progress:^(double prog, int status) {
-        native_main(^{ if (progress) progress((NSInteger)prog); });
-    } success:^{
-        native_main(^{ if (success) success(taskId); });
-    } failure:^(NSError *error) {
-        native_main(^{ if (failure) failure(error); });
-    }];
+    [self processRecordWithParams:params
+                         taskType:taskType
+                          success:success
+                         progress:progress
+                          failure:failure];
 }
 
 @end
