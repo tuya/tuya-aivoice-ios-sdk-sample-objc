@@ -39,6 +39,9 @@ target 'tuya-aivoice-ios-sdk-sample-objc' do
 
   pod 'ThingSmartHomeKit', '~> 7.8.0'
   pod 'ThingSmartFamilyBizBundle', '~> 7.8.0'
+
+  # 灌流调试组件（本地依赖）
+  pod 'ThingPerfusionKit', :path => './Modules/ThingPerfusionKit'
   
 end
 

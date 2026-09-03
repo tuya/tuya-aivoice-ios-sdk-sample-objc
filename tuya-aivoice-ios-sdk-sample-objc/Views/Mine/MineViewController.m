@@ -9,7 +9,7 @@
 #import <ThingSmartBaseKit/ThingSmartUser.h>
 #import <ThingModuleManager/ThingModuleManager.h>
 #import <ThingModuleServices/ThingFeedBackProtocol.h>
-//#import <ThingPerfusionKit/ThingPerfusionViewController.h>
+#import <ThingPerfusionKit/ThingPerfusionViewController.h>
 
 @interface MineViewController ()
 
@@ -158,9 +158,9 @@
 - (void)openDeviceManagement { [self.navigationController pushViewController:[DeviceManagementViewController new] animated:YES]; }
 
 - (void)openDebugTool {
-//    ThingPerfusionViewController *debugVC = [[ThingPerfusionViewController alloc] init];
-//    debugVC.hidesBottomBarWhenPushed = YES;
-//    [self.navigationController pushViewController:debugVC animated:YES];
+    ThingPerfusionViewController *debugVC = [[ThingPerfusionViewController alloc] init];
+    debugVC.hidesBottomBarWhenPushed = YES;
+    [self.navigationController pushViewController:debugVC animated:YES];
 }
 
 - (void)editNickname {
