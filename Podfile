@@ -40,8 +40,11 @@ target 'tuya-aivoice-ios-sdk-sample-objc' do
   pod 'ThingSmartHomeKit', '~> 7.8.0'
   pod 'ThingSmartFamilyBizBundle', '~> 7.8.0'
 
-  # 灌流调试组件（本地依赖）
-  pod 'ThingPerfusionKit', :path => './Modules/ThingPerfusionKit'
+  # AIVoice Debug 工具组件（本地依赖）：灌流调试 + 诊断日志导出
+  pod 'ThingAIVoiceDebugKit', :path => './Modules/ThingAIVoiceDebugKit'
+  
+  # 日志组件
+  pod 'ThingSmartLogger'
   
 end
 

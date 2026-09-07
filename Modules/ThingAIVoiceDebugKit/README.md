@@ -1,9 +1,13 @@
-# ThingPerfusionKit
+# ThingAIVoiceDebugKit
 
-AI 语音**灌流（Perfusion）调试组件**。用本地音频文件替换麦克风采集数据，
-跑通 ASR / 翻译 / TTS 全链路，计算 **WER（词错误率）** 并导出 **HTML 测试报告**。
+AI 语音 **Debug 工具组件**，面向客户提供相关 Debug 能力：
+
+- **灌流（Perfusion）调试**：用本地音频文件替换麦克风采集数据，跑通 ASR / 翻译 / TTS 全链路，计算 **WER（词错误率）** 并导出 **HTML 测试报告**。
+- **诊断日志导出**：合并 `ThingLogSDK` 的多份日志为一份文件并通过系统分享面板导出，导出成功后清理本地日志文件。
 
 不依赖 ThingDebuggerAIBudsTool / ThingDebuggerBaseKit / ThingBaseDebugger / ThingOEMConfig。
+
+> 本组件原名 `ThingPerfusionKit`，现更名为 `ThingAIVoiceDebugKit`，定位为 AIVoice 的 Debug 工具集。灌流相关类仍沿用 `ThingPerfusion*` 前缀。
 
 ---
 
@@ -12,21 +16,58 @@ AI 语音**灌流（Perfusion）调试组件**。用本地音频文件替换麦�
 Podfile 中以本地路径依赖：
 
 ```ruby
-pod 'ThingPerfusionKit', :path => '../Modules/ThingPerfusionKit'
+pod 'ThingAIVoiceDebugKit', :path => '../Modules/ThingAIVoiceDebugKit'
 ```
 
-只要灌流与评估能力、不要页面时，可只集成 Core：
+只要核心能力（灌流评估 + 日志导出）、不要灌流页面时，可只集成 Core：
 
 ```ruby
-pod 'ThingPerfusionKit/Core', :path => '../Modules/ThingPerfusionKit'
+pod 'ThingAIVoiceDebugKit/Core', :path => '../Modules/ThingAIVoiceDebugKit'
 ```
 
 | 子模块 | 内容 | 依赖 |
 |---|---|---|
-| `Core` | 灌流配置提供者、WAV 格式校验、WER 计算、报告生成（无 UI） | `ThingAudioRecordInterface`、`ThingModuleManager`、`ThingAnnotationFoundation` |
+| `Core` | 灌流配置提供者、WAV 格式校验、WER 计算、报告生成、诊断日志导出（无自定义 UI） | `ThingAudioRecordInterface`、`ThingModuleManager`、`ThingAnnotationFoundation`、`ThingSmartLogger` |
 | `UI` | 开箱可用的灌流调试页（自带页面基类） | `Core` + UIKit / AVFAudio |
 
-以上依赖均为 AI 语音业务包的既有传递依赖，**无需新增任何 pod**。
+除 `ThingSmartLogger`（日志组件）外，其余依赖均为 AI 语音业务包的既有传递依赖。
+
+---
+
+## 诊断日志导出
+
+把 `ThingLogSDK` 产生的多份**加密日志**打包成一个 zip 导出，导出成功后删除本地原始日志。日志是加密文件、无法拼接成文本，因此只做原样压缩归档。纯逻辑，无自定义 UI 依赖。
+
+### 一步导出（最常用）
+
+```objc
+#import <ThingAIVoiceDebugKit/ThingDiagnosticLogExporter.h>
+
+[ThingDiagnosticLogExporter presentExportFromViewController:self
+                                                sourceView:sender   // iPad popover 锚点，iPhone 可传 nil
+                                                completion:^(ThingDiagnosticLogExportResult result, NSError *error) {
+    switch (result) {
+        case ThingDiagnosticLogExportResultNoLogs:    /* 无日志 */ break;
+        case ThingDiagnosticLogExportResultFailed:    /* 合并失败，看 error */ break;
+        case ThingDiagnosticLogExportResultSuccess:   /* 导出成功，已清理本地日志 */ break;
+        case ThingDiagnosticLogExportResultCancelled: /* 用户取消 */ break;
+    }
+}];
+```
+
+流程：收集 `[ThingLogSDK logPath]`（目录会展开为其中文件）→ 按文件名排序后原样压缩成一个 zip → 弹系统分享面板 → 用户完成分享后删除原始日志，打包的临时 zip 无论成败都会清理。回调在主线程执行。
+
+### 只要能力，自己控制流程
+
+```objc
+NSArray<NSString *> *paths = [ThingDiagnosticLogExporter collectLogFilePaths];
+NSError *error = nil;
+NSURL *zip = [ThingDiagnosticLogExporter archiveLogFilePaths:paths error:&error];
+// ... 自行分享/上传 zip ...
+[ThingDiagnosticLogExporter removeLogFilePaths:paths];   // 需要时再删
+```
+
+> 前提：宿主已调用 `[ThingLogSDK startLog]` 开启日志。删除的是 `logPath` 指向的原始日志文件，删除后 SDK 会继续写新日志。
 
 ---
 
@@ -212,16 +253,17 @@ Levenshtein 动态规划 + 回溯得到每个位置的操作；代价相同时�
 ## 目录结构
 
 ```
-ThingPerfusionKit/
-├── ThingPerfusionKit.podspec
+ThingAIVoiceDebugKit/
+├── ThingAIVoiceDebugKit.podspec
 ├── README.md
-└── ThingPerfusionKit/Classes/
+└── ThingAIVoiceDebugKit/Classes/
     ├── Core/
     │   ├── ThingPerfusionService.h/.m          灌流配置提供者 + 文件管理
     │   ├── ThingPerfusionAudioFileInfo.h/.m    WAV 格式校验
     │   ├── ThingPerfusionWERCalculator.h/.m    WER 计算
     │   ├── ThingPerfusionReportBuilder.h/.m    HTML 报告
-    │   └── ThingPerfusionRecordBridge.h/.m     录音链路桥接
+    │   ├── ThingPerfusionRecordBridge.h/.m     录音链路桥接
+    │   └── ThingDiagnosticLogExporter.h/.m     诊断日志合并导出
     └── UI/
         ├── ThingPerfusionViewController.h/.m       灌流调试页
         └── ThingPerfusionBaseViewController.h/.m   页面基类

@@ -8,8 +8,8 @@
 #import "DeviceManagementViewController.h"
 #import <ThingSmartBaseKit/ThingSmartUser.h>
 #import <ThingModuleManager/ThingModuleManager.h>
-#import <ThingModuleServices/ThingFeedBackProtocol.h>
-#import <ThingPerfusionKit/ThingPerfusionViewController.h>
+#import <ThingAIVoiceDebugKit/ThingPerfusionViewController.h>
+#import <ThingAIVoiceDebugKit/ThingDiagnosticLogExporter.h>
 
 @interface MineViewController ()
 
@@ -88,7 +88,7 @@
     [self.view addSubview:self.menuCard];
     UIButton *deviceButton = [self menuButtonWithTitle:@"设备管理" detail:@"名称、状态与解绑" action:@selector(openDeviceManagement)];
     UIButton *nicknameButton = [self menuButtonWithTitle:@"修改昵称" detail:@"展示在家庭成员列表中" action:@selector(editNickname)];
-    UIButton *logButton = [self menuButtonWithTitle:@"上传诊断日志" detail:@"通过涂鸦反馈服务提交" action:@selector(uploadDiagnosticLog)];
+    UIButton *logButton = [self menuButtonWithTitle:@"导出诊断日志" detail:@"导出本地 SDK 日志文件" action:@selector(exportDiagnosticLog:)];
     UIButton *debugButton = [self menuButtonWithTitle:@"灌流调试" detail:@"本地音频灌流，导出 ASR/翻译结果" action:@selector(openDebugTool)];
     UIStackView *menuStack = [[UIStackView alloc] initWithArrangedSubviews:@[deviceButton, nicknameButton, logButton, debugButton]];
     menuStack.axis = UILayoutConstraintAxisVertical; menuStack.spacing = 1; menuStack.backgroundColor = [self familyHairlineColor]; menuStack.translatesAutoresizingMaskIntoConstraints = NO;
@@ -170,13 +170,23 @@
     }];
 }
 
-- (void)uploadDiagnosticLog {
-    [self showFamilyConfirmationWithTitle:@"上传诊断日志" message:@"将进入涂鸦反馈服务，由您确认需要提交的日志和问题说明。" confirmTitle:@"继续" destructive:NO confirm:^{
-        id<ThingFeedBackProtocol> service = [ThingModule serviceOfRequiredProtocol:@protocol(ThingFeedBackProtocol)];
-        if ([service respondsToSelector:@selector(gotFeedBackViewControllerWithHdType:deviceName:hdId:uuid:region:withoutRefresh:)]) {
-            [service gotFeedBackViewControllerWithHdType:8 deviceName:nil hdId:nil uuid:nil region:nil withoutRefresh:YES];
-        } else {
-            [self showFamilyMessageWithTitle:@"日志服务不可用" message:@"当前构建未加载涂鸦反馈模块。"];
+- (void)exportDiagnosticLog:(UIButton *)sender {
+    __weak typeof(self) weakSelf = self;
+    [ThingDiagnosticLogExporter presentExportFromViewController:self
+                                                    sourceView:sender
+                                                    completion:^(ThingDiagnosticLogExportResult result, NSError *error) {
+        switch (result) {
+            case ThingDiagnosticLogExportResultNoLogs:
+                [weakSelf showFamilyMessageWithTitle:@"暂无日志" message:@"未找到可导出的日志文件。"];
+                break;
+            case ThingDiagnosticLogExportResultFailed:
+                [weakSelf showFamilyMessageWithTitle:@"导出失败" message:error.localizedDescription ?: @"未知错误"];
+                break;
+            case ThingDiagnosticLogExportResultSuccess:
+                [weakSelf showFamilyMessageWithTitle:@"导出成功" message:@"已导出并清理本地日志文件。"];
+                break;
+            case ThingDiagnosticLogExportResultCancelled:
+                break;
         }
     }];
 }

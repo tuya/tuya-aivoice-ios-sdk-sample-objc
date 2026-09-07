@@ -11,6 +11,7 @@
 #import <ThingSmartBaseKit/ThingSmartBaseKit.h>
 #import <ThingSmartMiniAppBizBundle/ThingSmartMiniAppBizBundle.h>
 #import <ThingModuleManager/ThingModuleManager.h>
+#import <ThingSmartLogger/ThingLogSDK.h>
 
 @interface AppDelegate ()
 
@@ -63,6 +64,9 @@
     
     // 开启 vConsole 调试开关
     [[ThingMiniAppClient debugClient] vConsoleDebugEnable:YES];
+    
+    // 日志记录
+    [ThingLogSDK startLog];
     
     return [[ThingModuleManager sharedInstance] application:application didFinishLaunchingWithOptions:launchOptions];
 }
