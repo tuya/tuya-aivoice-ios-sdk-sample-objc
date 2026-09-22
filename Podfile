@@ -3,7 +3,7 @@ source 'https://github.com/CocoaPods/Specs.git'
 source 'https://github.com/tuya/tuya-pod-specs.git'
 
 use_modular_headers!
-platform :ios, '13.0'
+platform :ios, '14.0'
 inhibit_all_warnings!
 use_frameworks! :linkage => :static
 
@@ -15,6 +15,7 @@ target 'tuya-aivoice-ios-sdk-sample-objc' do
   # AI 音频UI业务包
   pod 'ThingSmartAIVoiceBizBundle', '~> 7.8.0'
 
+  pod 'ThingAudioRecordModule', '1.12.27'
 
   # 小程序UI业务包
   pod "ThingSmartMiniAppBizBundle", '~> 7.8.0'

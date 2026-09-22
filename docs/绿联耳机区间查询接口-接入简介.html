@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设备区间转写时长查询接口 · 接入简介</title>
+<style>
+  :root {
+    --ink: #1f2933; --sub: #52606d; --line: #e4e7eb;
+    --blue: #1e5eff; --blue-bg: #f0f4ff; --orange: #b25e09; --orange-bg: #fff6e8;
+    --code-bg: #f5f7fa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0; background: #fafbfc; color: var(--ink);
+    font: 15px/1.7 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .page { max-width: 860px; margin: 0 auto; padding: 36px 28px 70px; background: #fff; }
+  h1 { font-size: 23px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 30px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--line); }
+  h2 .no { color: var(--blue); margin-right: 8px; }
+  p { margin: 8px 0; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 24px; color: var(--sub); font-size: 13px; margin: 12px 0 0; }
+  .meta b { color: var(--ink); font-weight: 600; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; white-space: nowrap; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font: 13px/1.5 "SF Mono", Menlo, Consolas, monospace; }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; margin: 10px 0; }
+  pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+  .callout { border-left: 4px solid var(--orange); background: var(--orange-bg); border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 13.5px; }
+  .footer { margin-top: 44px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--sub); font-size: 12.5px; }
+  ul { margin: 6px 0; padding-left: 22px; }
+  li { margin: 2px 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>设备区间转写时长查询接口 · 接入简介</h1>
+<div class="meta">
+  <span>API：<b><code>m.wearable.audio.device.usage.range</code> v1.0</b></span>
+  <span>协议：ATOP（Fusion），C 端登录</span>
+  <span>日期：2026-09-11</span>
+  <span>详细设计：<b>《绿联耳机转写时长区间查询接口-技术方案》</b></span>
+</div>
+
+<p>查询当前登录用户在指定设备上、<strong>任意起止区间</strong>内的转写物理总时长（秒）。与「本周/本月查询」（<code>m.wearable.audio.device.usage.get</code>）同一套统计口径：<strong>离线转写音频物理时长（仅成功完成）+ 实时转写会话物理时长；含已删除记录；同一音频两种转写各计一次</strong>。</p>
+
+<h2><span class="no">1</span>核心规则</h2>
+<ul>
+  <li><b>任意历史区间均可查</b>：不限制区间距今多远，只要求<strong>跨度 ≤ 1 年</strong>（<code>endTime ≤ startTime + 1年</code>，日历语义）；</li>
+  <li><b>不允许查未来</b>：<code>endTime &gt; 当前时刻</code> 返回错误；</li>
+  <li><b>仅可查自己名下设备</b>：非设备所在家庭成员返回 <code>PERMISSION_DENY</code>。</li>
+</ul>
+
+<h2><span class="no">2</span>入参</h2>
+<table>
+  <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+  <tr><td><code>devId</code></td><td>String</td><td>是</td><td>设备 ID</td></tr>
+  <tr><td><code>startTime</code></td><td>Long</td><td>是</td><td>开始时间，epoch 毫秒（含）</td></tr>
+  <tr><td><code>endTime</code></td><td>Long</td><td>是</td><td>结束时间，epoch 毫秒（含）；须满足 <code>startTime &lt; endTime ≤ startTime+1年</code> 且不晚于当前时刻</td></tr>
+  <tr><td><code>timeZoneId</code></td><td>String</td><td>否</td><td>App 时区（网关系统参数自动注入）；不影响统计结果，仅作设备时区缺失时的降级与回显</td></tr>
+</table>
+
+<h2><span class="no">3</span>出参</h2>
+<table>
+  <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+  <tr><td><code>totalSeconds</code></td><td>Long</td><td>区间内转写物理总时长（秒）</td></tr>
+  <tr><td><code>startTime</code></td><td>Long</td><td>回显请求的区间起点（epoch 毫秒）</td></tr>
+  <tr><td><code>endTime</code></td><td>Long</td><td>回显请求的区间终点（epoch 毫秒）</td></tr>
+  <tr><td><code>timeZone</code></td><td>String</td><td>实际采用的时区 ID（回显）</td></tr>
+</table>
+
+<h2><span class="no">4</span>错误码</h2>
+<table>
+  <tr><th>errorCode</th><th>触发条件</th><th>客户端处理</th></tr>
+  <tr><td><code>USAGE_TIME_RANGE_INVALID</code></td><td><code>startTime/endTime</code> 缺失，或 <code>startTime ≥ endTime</code></td><td>提示"时间参数有误"</td></tr>
+  <tr><td><code>USAGE_TIME_RANGE_OVER_LIMIT</code></td><td>跨度超一年，或 <code>endTime</code> 晚于当前时刻</td><td>toast「单次最多查询一年的转写时长」，并限制日期选择器跨度</td></tr>
+  <tr><td><code>PERMISSION_DENY</code></td><td>当前用户非设备所在家庭成员</td><td>提示无权限查看该设备</td></tr>
+  <tr><td>框架缺参 / not-exists 信封</td><td><code>devId</code> 缺失 / 设备不存在或非正常状态</td><td>按框架标准错误处理</td></tr>
+</table>
+
+<h2><span class="no">5</span>报文示例</h2>
+<p>请求：</p>
+<pre><code>{
+  "devId": "6c52afyjzzovrglu",
+  "startTime": 1756684800000,
+  "endTime": 1759276800000
+}</code></pre>
+<p>成功响应：</p>
+<pre><code>{
+  "success": true,
+  "result": {
+    "totalSeconds": 3265,
+    "startTime": 1756684800000,
+    "endTime": 1759276800000,
+    "timeZone": "Asia/Shanghai"
+  }
+}</code></pre>
+<p>失败响应（超限 / 参数非法 / 无权限同结构）：</p>
+<pre><code>{
+  "success": false,
+  "errorCode": "USAGE_TIME_RANGE_OVER_LIMIT",
+  "errorMsg": "time range exceeds one year or ends in the future"
+}</code></pre>
+<div class="callout">
+  时间入参一律用 <b>epoch 毫秒</b>（绝对时间戳，与时区无关）；日期选择器请在客户端限制可选跨度为一年，避免无效请求。错误信封字段名以联调时网关实际报文为准。
+</div>
+
+<div class="footer">
+  口径与详细设计见《绿联耳机转写时长区间查询接口-技术方案.html》（同目录）；统计口径决策见《绿联耳机TTS与转写时长接口-需求分析与链路解读》§5.7。
+</div>
+
+</div>
+</body>
+</html>

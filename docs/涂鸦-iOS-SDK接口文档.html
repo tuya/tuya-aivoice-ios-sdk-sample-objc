@@ -106,6 +106,7 @@ details summary:hover{background:var(--brand-light)}
   </div>
   <div class="nav-group"><div class="nav-group-title">核心功能</div>
     <a class="nav-item" data-page="recording"><span class="nav-num">一</span> 录音</a>
+    <a class="nav-item" data-page="conversation"><span class="nav-num">↳</span> 对话翻译</a>
     <a class="nav-item" data-page="filelist"><span class="nav-num">二</span> 文件列表</a>
     <a class="nav-item" data-page="filedetail"><span class="nav-num">三</span> 文件详情</a>
     <a class="nav-item" data-page="processing"><span class="nav-num">四</span> 转写 / 总结 / 翻译</a>
@@ -145,6 +146,7 @@ details summary:hover{background:var(--brand-light)}
   <p style="margin-bottom:16px;color:var(--text-secondary)">点击卡片跳转到对应章节</p>
   <div class="feature-grid">
     <div class="feature-card" onclick="navTo('recording')"><div class="feature-icon">🎙️</div><h4>录音</h4><p>实时录音、暂停恢复、状态监听、振幅与 ASR 回调</p></div>
+    <div class="feature-card" onclick="navTo('conversation')"><div class="feature-icon">🗣️</div><h4>对话翻译</h4><p>面对面双向语音翻译、发言方切换、实时 ASR / 译文回调</p></div>
     <div class="feature-card" onclick="navTo('filelist')"><div class="feature-icon">📂</div><h4>文件列表</h4><p>录音文件分页查询、混合搜索（标题/标签/转写内容）</p></div>
     <div class="feature-card" onclick="navTo('filedetail')"><div class="feature-icon">📄</div><h4>文件详情</h4><p>单条录音元数据、振幅数据、多种处理状态</p></div>
     <div class="feature-card" onclick="navTo('processing')"><div class="feature-icon">🤖</div><h4>转写 / 总结 / 翻译</h4><p>离线发起转写、总结、翻译任务；实时 ASR 查询</p></div>
@@ -281,7 +283,7 @@ params.asc = @(0);      // 降序
     <div class="method-body">
       <pre><code class="language-objc">- (void)addRecordListener:(id&lt;ThingAudioRecordManagerDelegate&gt;)listener deviceId:(NSString *)deviceId;
 - (void)removeRecordListener:(id&lt;ThingAudioRecordManagerDelegate&gt;)listener deviceId:(NSString *)deviceId;</code></pre>
-      <div class="callout"><div class="callout-title">监听器使用要点</div><p>监听器由调用方强引用，销毁前用同一实例移除。所有回调保证在主线程，可直接更新 UI。</p></div>
+      <div class="callout"><div class="callout-title">监听器使用要点</div><p>监听器由调用方强引用，销毁前用同一实例移除。回调线程由底层服务决定，更新 UI 前必须切换到主线程。</p></div>
       <details><summary>回调方法一览</summary><div class="detail-content"><table class="param-table"><thead><tr><th>回调</th><th>参数含义</th><th>触发频率</th></tr></thead><tbody>
         <tr><td>record:didUpdateStatus:</td><td>含 state、isStarting、isPausing 等</td><td>状态变更时</td></tr>
         <tr><td>record:didUpdateAmplitude:channel:</td><td>振幅值 + 声道</td><td>约每 200ms 一次</td></tr>
@@ -295,7 +297,7 @@ params.asc = @(0);      // 降序
   </div>
   <details><summary>📦 ThingAudioRecordConfig 完整参数（点击展开）</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>类型</th><th>说明</th></tr></thead><tbody>
     <tr><td>recordType</td><td>ThingAudioRecordType</td><td>录音类型</td></tr><tr><td>transferType</td><td>ThingAudioRecordTransferType</td><td>文件转写或实时转写</td></tr>
-    <tr><td>originalLanguage</td><td>NSString</td><td>源语言，可为空</td></tr><tr><td>targetLanguage</td><td>NSString</td><td>目标语言，可为空</td></tr>
+    <tr><td>originalLanguage</td><td>NSString</td><td>源语言；<code>needAsr = YES</code> 时必填</td></tr><tr><td>targetLanguage</td><td>NSString</td><td>目标语言；<code>needTranslate = YES</code> 时必填</td></tr>
     <tr><td>needAsr</td><td>BOOL</td><td>是否开启实时 ASR</td></tr><tr><td>needTranslate</td><td>BOOL</td><td>是否开启翻译</td></tr>
     <tr><td>needTTS</td><td>BOOL</td><td>是否开启 TTS</td></tr><tr><td>needAmplitude</td><td>BOOL</td><td>是否生成振幅数据</td></tr>
     <tr><td>audioSource</td><td>ThingAudioSource</td><td>主音源</td></tr><tr><td>audioSourceList</td><td>NSArray&lt;NSNumber *&gt;</td><td>多音源列表</td></tr>
@@ -304,6 +306,7 @@ params.asc = @(0);      // 降序
     <tr><td>audioRecordUpstreamFormat</td><td>NSInteger</td><td>上行格式：0 PCM，1 Opus</td></tr>
     <tr><td>saveDataWhenError</td><td>BOOL</td><td>异常时是否保留已录音数据</td></tr>
     <tr><td>needAutoRecognize</td><td>BOOL</td><td>是否自动识别语言</td></tr>
+    <tr><td>f2fChannel</td><td>int</td><td>对话翻译当前发言方：0 为 A/左侧，1 为 B/右侧；自动识别时传 0</td></tr>
     <tr><td>startLivingStatus</td><td>NSInteger</td><td>直播状态：0 未开启，1 开启，2 更新参数</td></tr>
     <tr><td>forceCreateToken</td><td>BOOL</td><td>是否强制刷新 Token</td></tr><tr><td>agentId</td><td>NSString</td><td>AI Agent ID</td></tr>
     <tr><td>ttsConfig / ttsConfigList</td><td>ThingAudioTTSConfig</td><td>TTS 配置（单/多设备）</td></tr>
@@ -317,6 +320,193 @@ params.asc = @(0);      // 降序
     <tr><td>originalLanguage / targetLanguage</td><td>NSString</td><td>源/目标语言</td></tr>
     <tr><td>businessType</td><td>ThingAudioBusinessType</td><td>业务来源</td></tr><tr><td>currentRealTimeTransferRequestId</td><td>long long</td><td>当前实时转写请求 ID</td></tr>
   </tbody></table></div></details>
+</section>
+
+<!-- CONVERSATION TRANSLATION -->
+<section class="page" id="page-conversation">
+  <div class="page-header"><div class="breadcrumb">核心功能 / 录音场景</div><h2>对话翻译（面对面翻译）</h2><p class="subtitle">使用 NativeSDK 完成双向语音识别、翻译与 TTS 播放</p></div>
+
+  <div class="diagram-container">
+    <div class="mermaid">flowchart LR;A["注册 Listener"] --> B["选择发言方并组装 Config"];B --> C["startAudioRecording"];C --> D["接收 ASR 译文 TTS"];D --> E["点击当前侧 pause"];E --> F["Paused"];F -->|"选择左侧或右侧"| B;F -->|"结束对话"| G["stop 移除 Listener"]</div>
+    <p class="diagram-caption">面对面翻译调用流程</p>
+  </div>
+
+  <div class="card">
+    <h3 class="card-title"><span class="icon">🧭</span> 1. 面对面翻译关键参数</h3>
+    <table class="param-table"><thead><tr><th>参数</th><th>配置</th><th>说明</th></tr></thead><tbody>
+      <tr><td>recordType</td><td><code>ThingAudioRecordTypeFaceToFace</code> (3)</td><td>面对面翻译固定值</td></tr>
+      <tr><td>deviceId</td><td>左右两侧分别指定</td><td>手机设备可使用 <code>@"PHONE"</code>；物理设备传真实设备 ID</td></tr>
+      <tr><td>audioSource / audioSourceList</td><td>左右两侧分别指定</td><td>每次 start 传入当前发言侧的输入源配置</td></tr>
+      <tr><td>needTTS / ttsConfig / ttsConfigList</td><td>左右两侧分别指定</td><td><code>needTTS</code> 只控制当前发言侧的 TTS 播放；每侧可独立关闭，或配置系统、蓝牙、设备直出通道</td></tr>
+      <tr><td>f2fChannel</td><td><code>0</code> 或 <code>1</code></td><td>A/左侧发言传 0，B/右侧发言传 1</td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">2. ThingAudioRecordConfig（动态输入/输出示例）</div><div class="method-desc">输入源和 TTS 输出源由调用方传入</div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (ThingAudioRecordConfig *)faceToFaceConfigWithAudioSources:(NSArray&lt;NSNumber *&gt; *)audioSources
+                                                  ttsConfigs:(NSArray&lt;ThingAudioTTSConfig *&gt; *)ttsConfigs
+                                                     needTTS:(BOOL)needTTS
+                                              sourceLanguage:(NSString *)sourceLanguage
+                                               targetLanguage:(NSString *)targetLanguage
+                                                      speaker:(NSInteger)speaker {
+    NSParameterAssert(audioSources.count &gt; 0);
+    NSParameterAssert(!needTTS || ttsConfigs.count &gt; 0);
+
+    ThingAudioRecordConfig *config = [[ThingAudioRecordConfig alloc] init];
+    config.businessType = ThingAudioBusinessTypeTranslate;
+    config.recordType = ThingAudioRecordTypeFaceToFace;
+    config.transferType = ThingAudioRecordTransferTypeRealTime;
+
+    // 输入源由业务根据当前收音设备动态传入。
+    config.audioSource = (ThingAudioSource)audioSources.lastObject.integerValue;
+    config.audioSourceList = [audioSources copy];
+
+    config.needAsr = YES;
+    config.needTranslate = YES;
+    config.needTTS = needTTS;
+    config.needAmplitude = YES;
+    config.saveDataWhenError = YES;
+    config.controlTimeout = 5;
+    config.dataTimeout = 10;
+
+    // A/左侧发言传 0，B/右侧发言传 1。
+    config.f2fChannel = (int)speaker;
+    config.needAutoRecognize = NO;
+    config.originalLanguage = sourceLanguage;
+    config.targetLanguage = targetLanguage;
+    config.agentId = self.agentId;
+
+    // TTS 输出源由业务根据当前播放设备动态传入。
+    if (needTTS) {
+        config.ttsConfig = ttsConfigs.lastObject;
+        config.ttsConfigList = [ttsConfigs copy];
+    }
+    config.audio3AConfig = [ThingAudio3AConfig optimalConfigForSupportTTS:needTTS];
+    return config;
+}</code></pre>
+      <div class="callout"><div class="callout-title">左右两侧分别保存音频配置</div><p>调用方应分别保存左右两侧的 <code>deviceId</code>、<code>audioSources</code>、<code>needTTS</code> 与 <code>ttsConfigs</code>，每次 start 只组装当前发言侧的配置。系统通道的 <code>devId</code> 传空；使用 <code>ThingAudioTTSOutput_DEVICE</code> 时传真实设备 ID，并按设备音频能力选择 OPUS_SILK 或 OPUS_CELT。</p></div>
+    </div>
+  </div>
+
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">3.1 开始、暂停与切换发言方</div><div class="method-desc">录音中先 pause，暂停后由用户选择下一侧并重新 start</div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)startTurnForSpeaker:(NSInteger)speaker
+            sourceLanguage:(NSString *)sourceLanguage
+            targetLanguage:(NSString *)targetLanguage {
+    NSString *deviceId = [self inputDeviceIdForSpeaker:speaker];
+    NSArray *audioSources = [self audioSourcesForSpeaker:speaker];
+    NSArray *ttsConfigs = [self ttsConfigsForSpeaker:speaker];
+    ThingAudioRecordConfig *config =
+        [self faceToFaceConfigWithAudioSources:audioSources
+                                    ttsConfigs:ttsConfigs
+                                       needTTS:[self ttsEnabledForSpeaker:speaker]
+                                sourceLanguage:sourceLanguage
+                                  targetLanguage:targetLanguage
+                                         speaker:speaker];
+    self.currentConfig = config; // 保留完整配置，便于后续更新语言
+
+    [self.manager startAudioRecordingWithDeviceId:deviceId
+                                          config:config
+                                          success:^(ThingAudioRecordObject *task) {
+        // 启动成功
+    } failure:^(NSError *error) {
+        // 展示 error.localizedDescription，并按 error.code 分类处理。
+    }];
+}
+
+// 左右两侧分别保存 deviceId、输入源、输出源和 TTS 开关；
+// 使用某侧设备前，先为该 deviceId 注册同一个 Listener。
+
+// A/左侧说 zh，翻译为 en。
+[self startTurnForSpeaker:0 sourceLanguage:@"zh" targetLanguage:@"en"];
+
+// 录音中点击当前侧只执行 pause，不在成功回调中立即 start。
+[self.manager pauseRecordTransferWithDeviceId:self.deviceId success:^{
+    self.recordState = ThingAudioRecordStatePaused;
+    self.activeSpeaker = -1;
+} failure:^(NSError *error) {
+    // 保持当前录音态并提示暂停失败，不要继续 start。
+}];
+
+// pause 成功后，用户点击 B/右侧，再交换语言并调用 start。
+[self startTurnForSpeaker:1 sourceLanguage:@"en" targetLanguage:@"zh"];</code></pre>
+      <div class="callout"><div class="callout-title">使用 Start → Pause → Start 状态机</div><p>空闲或暂停状态下，点击任一发言方都调用 <code>startAudioRecording...</code>；录音状态下只允许当前发言方执行 <code>pauseRecordTransfer...</code>。暂停成功后再展示双方按钮，由用户选择下一位发言方；不要在 pause 成功回调中自动 start，也不需要调用 resume。切换发言方时更新 <code>f2fChannel</code>，并交换 <code>originalLanguage</code> 和 <code>targetLanguage</code>。</p></div>
+    </div>
+  </div>
+
+  <div class="method">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">3.2 录音中修改语言</div><div class="method-desc">使用当前完整 Config 调用 updateParams</div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">self.currentConfig.originalLanguage = newSourceLanguage;
+self.currentConfig.targetLanguage = newTargetLanguage;
+[self.manager updateParamsWithDeviceId:self.deviceId
+                                 config:self.currentConfig
+                                success:^{
+    // 后续分句使用新语言
+} failure:^(NSError *error) {
+    // 保留原语言选择或提示用户
+}];</code></pre>
+    </div>
+  </div>
+
+  <div class="method open">
+    <div class="method-header" onclick="toggleMethod(this)"><div class="method-info"><div class="method-name">4. ThingAudioRecordManagerDelegate</div><div class="method-desc">接收状态、ASR 原文、译文和结束事件</div></div><span class="method-chevron">▶</span></div>
+    <div class="method-body">
+      <pre><code class="language-objc">- (void)record:(NSString *)deviceId
+onProcessResult:(ThingAudioRecordProcessResult *)result {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (result.error) {
+            // 任务、ASR、翻译或 TTS 阶段错误
+            return;
+        }
+        if (result.text.length &gt; 0) {
+            self.sourceLabel.text = result.text;
+        }
+        if (result.translateText.length &gt; 0) {
+            self.translationLabel.text = result.translateText;
+        }
+        // result.channel 可用于将分句放入对应发言方的气泡。
+        // status / translateStatus == End 表示当前分句已完结。
+    });
+}
+
+- (void)record:(NSString *)deviceId
+didUpdateStatus:(ThingAudioRecordStatus *)status {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // Ongoing / Paused / Finish 驱动开始、暂停、结束 UI。
+    });
+}
+
+- (void)record:(NSString *)deviceId didFinishWithError:(NSError *)error {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        // error == nil 表示正常结束；此时再进入历史记录。
+    });
+}</code></pre>
+      <details><summary>实时结果关键字段</summary><div class="detail-content"><table class="param-table"><thead><tr><th>字段</th><th>用途</th></tr></thead><tbody>
+        <tr><td>recordId / requestId / asrId</td><td>会话记录、当前请求和实时分句标识</td></tr>
+        <tr><td>channel</td><td>结果所属的发言方/声道</td></tr>
+        <tr><td>phase</td><td>0 任务、1 收音、2 发音频、3 收数据、4 ASR、5 文本、6 Skill、7 TTS</td></tr>
+        <tr><td>status / translateStatus</td><td>0 开始、1 更新、2 结束、3 取消</td></tr>
+        <tr><td>text / translateText</td><td>ASR 原文 / 译文</td></tr>
+        <tr><td>beginTime / endTime</td><td>当前分句的起止时间</td></tr>
+        <tr><td>error</td><td>当前处理阶段错误；不为 nil 时优先处理</td></tr>
+      </tbody></table></div></details>
+      <div class="callout"><div class="callout-title">未完成断句不要新增气泡</div><p>每个发言方分别维护一个识别中的句子。新的临时 <code>requestId</code> 到达时，如果该侧当前句子尚未识别出文本或尚未收到 <code>status == End</code>，应继续更新当前气泡并保持“正在识别”状态；只有当前句子已有识别文本且收到 End 后，下一条结果才创建新气泡。</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 class="card-title"><span class="icon">🏁</span> 5. 结束任务</h3>
+    <pre><code class="language-objc">// 结束任务后移除同一 deviceId 对应的监听。
+[self.manager stopRecordTransferWithDeviceId:self.deviceId success:^{
+    [self.manager removeRecordListener:self deviceId:self.deviceId];
+} failure:^(NSError *error) {
+    // 结束失败
+}];</code></pre>
+  </div>
 </section>
 
 <!-- FILE LIST -->
@@ -945,7 +1135,16 @@ flowchart TB
 <section class="page" id="page-enums">
   <div class="page-header"><div class="breadcrumb">扩展功能 / 十四、枚举参考</div><h2>枚举参考</h2><p class="subtitle">SDK 中所有关键枚举的值与含义</p></div>
   <div class="card"><h3 class="card-title"><span class="icon">📊</span> ThingAudioRecordState（录音状态）</h3><table class="param-table"><thead><tr><th>值</th><th>含义</th></tr></thead><tbody><tr><td>0</td><td>未知</td></tr><tr><td>1</td><td>录音中</td></tr><tr><td>2</td><td>已暂停</td></tr><tr><td>3</td><td>已结束</td></tr></tbody></table></div>
-  <div class="card"><h3 class="card-title">ThingAudioRecordType（录音类型）</h3><table class="param-table"><thead><tr><th>值</th><th>含义</th></tr></thead><tbody><tr><td>0</td><td>电话录音</td></tr><tr><td>1</td><td>会议录音</td></tr><tr><td>2</td><td>同声传译</td></tr><tr><td>3</td><td>面对面翻译</td></tr><tr><td>5</td><td>音频导入</td></tr></tbody></table></div>
+  <div class="card"><h3 class="card-title">ThingAudioRecordType（录音类型）</h3><table class="param-table"><thead><tr><th>值</th><th>枚举</th><th>含义</th></tr></thead><tbody>
+    <tr><td>0</td><td>ThingAudioRecordTypeCall</td><td>电话录音</td></tr>
+    <tr><td>1</td><td>ThingAudioRecordTypeMeet</td><td>会议录音</td></tr>
+    <tr><td>2</td><td>ThingAudioRecordTypeSimultaneousInterpretation</td><td>同声传译 / Pro 双耳对话</td></tr>
+    <tr><td>3</td><td>ThingAudioRecordTypeFaceToFace</td><td>面对面翻译</td></tr>
+    <tr><td>4</td><td>ThingAudioRecprdTypeTextTranslation</td><td>文本翻译</td></tr>
+    <tr><td>5</td><td>ThingAudioRecordTypeImport</td><td>音频导入</td></tr>
+    <tr><td>6</td><td>ThingAudioRecordTypePhoneAndBluetoothBudsMode</td><td>手机-蓝牙耳机对话模式</td></tr>
+    <tr><td>7</td><td>ThingAudioRecordTypeCallTranslate</td><td>通话翻译</td></tr>
+  </tbody></table></div>
   <div class="card"><h3 class="card-title">ThingAudioRecordChannel（录音通道）</h3><table class="param-table"><thead><tr><th>值</th><th>含义</th></tr></thead><tbody><tr><td>0</td><td>Opus/BLE 通道</td></tr><tr><td>1</td><td>系统蓝牙通道</td></tr><tr><td>2</td><td>手机麦克风通道</td></tr></tbody></table></div>
   <details><summary>ThingAudioRecordTransferType / TransferChannel / BusinessType / CloudSyncType</summary><div class="detail-content">
     <p><strong>ThingAudioRecordTransferType（转写类型）</strong></p><table class="param-table"><tbody><tr><td>0</td><td>录制完成后文件转写</td></tr><tr><td>1</td><td>录音过程中实时转写</td></tr></tbody></table>

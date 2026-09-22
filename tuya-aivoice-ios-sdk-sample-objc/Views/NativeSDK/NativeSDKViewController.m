@@ -6,6 +6,7 @@
 #import "NativeSDKViewController.h"
 #import "NativeAudioService.h"
 #import "NativeRecordListViewController.h"
+#import "FaceToFaceTranslationViewController.h"
 #import "DeviceService.h"
 #import <AVFAudio/AVFAudio.h>
 #import <ThingAudioRecordInterface/ThingAudioRecordInterface.h>
@@ -177,6 +178,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
 
     // 录音列表入口卡片：放在内容最顶部，方便客户查看历史录音。
     [self.contentStack addArrangedSubview:[self recordListEntryCard]];
+    [self.contentStack addArrangedSubview:[self faceToFaceEntryCard]];
 
     self.refreshButton = [self actionButtonWithTitle:@"刷新" action:@selector(refreshButtonTapped:)];
     [self.refreshButton.widthAnchor constraintEqualToConstant:72].active = YES;
@@ -423,6 +425,60 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
 - (void)recordListEntryTapped {
     NativeRecordListViewController *list = [[NativeRecordListViewController alloc] init];
     [self.navigationController pushViewController:list animated:YES];
+}
+
+- (UIView *)faceToFaceEntryCard {
+    UIView *card = [[UIView alloc] init];
+    card.backgroundColor = [UIColor.systemBlueColor colorWithAlphaComponent:0.10];
+    card.layer.cornerRadius = 14;
+
+    UIImageView *icon = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"person.2.wave.2"]];
+    icon.tintColor = UIColor.systemBlueColor;
+    icon.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UILabel *title = [[UILabel alloc] init];
+    title.text = @"面对面对话翻译";
+    title.font = [UIFont systemFontOfSize:17 weight:UIFontWeightSemibold];
+    title.textColor = UIColor.systemBlueColor;
+    title.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UILabel *subtitle = [[UILabel alloc] init];
+    subtitle.text = @"左右点击发言，实时查看原文与译文";
+    subtitle.font = [UIFont systemFontOfSize:13];
+    subtitle.textColor = self.familySecondaryTextColor;
+    subtitle.translatesAutoresizingMaskIntoConstraints = NO;
+
+    UIImageView *chevron = [[UIImageView alloc] initWithImage:[UIImage systemImageNamed:@"chevron.right"]];
+    chevron.tintColor = self.familySecondaryTextColor;
+    chevron.translatesAutoresizingMaskIntoConstraints = NO;
+
+    [card addSubview:icon];
+    [card addSubview:title];
+    [card addSubview:subtitle];
+    [card addSubview:chevron];
+    [NSLayoutConstraint activateConstraints:@[
+        [icon.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:16],
+        [icon.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+        [icon.widthAnchor constraintEqualToConstant:26],
+        [icon.heightAnchor constraintEqualToConstant:26],
+        [title.leadingAnchor constraintEqualToAnchor:icon.trailingAnchor constant:12],
+        [title.topAnchor constraintEqualToAnchor:card.topAnchor constant:16],
+        [subtitle.leadingAnchor constraintEqualToAnchor:title.leadingAnchor],
+        [subtitle.topAnchor constraintEqualToAnchor:title.bottomAnchor constant:2],
+        [subtitle.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-16],
+        [chevron.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-16],
+        [chevron.centerYAnchor constraintEqualToAnchor:card.centerYAnchor],
+        [chevron.widthAnchor constraintEqualToConstant:16],
+        [chevron.heightAnchor constraintEqualToConstant:16],
+    ]];
+
+    [card addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(faceToFaceEntryTapped)]];
+    return card;
+}
+
+- (void)faceToFaceEntryTapped {
+    FaceToFaceTranslationViewController *controller = [[FaceToFaceTranslationViewController alloc] init];
+    [self.navigationController pushViewController:controller animated:YES];
 }
 
 - (UIButton *)actionButtonWithTitle:(NSString *)title action:(SEL)action {

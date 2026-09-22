@@ -23,7 +23,7 @@ Demo: [tuya-aivoice-ios-sdk-sample-objc](https://github.com/tuya/tuya-aivoice-io
 |-------------|--------|--------------|--------------------|
 | Home | Home | AI Notes / AI Translation mini program cards with shortcuts (recording, simultaneous interpretation, real-time transcription, dialogue translation), device list, tap a device to open its panel | `MainViewController`, `MiniAppRoutes.h`, `DeviceListView` |
 | Home → top-right + | Add device | Standard provisioning (Tuya UI) or custom BLE single-point provisioning | `ActivatorService`, `CustomBLEPairingViewController`, `CustomBLEPairingSession` |
-| SDK | Recording | Audio source (phone mic / paired device), ASR / NLG translation / TTS switches, source and target language (14 each), live waveform, start / pause / resume / stop, live ASR and translation text, SDK event log | `NativeSDKViewController`, `NativeAudioService` |
+| SDK | Recording / Dialogue translation | The recording screen links to a dedicated dialogue page with alternating left/right talk buttons, configurable phone/Bluetooth/device I/O, two-sided languages and TTS, plus live ASR and translation bubbles | `NativeSDKViewController`, `FaceToFaceTranslationViewController`, `NativeAudioService` |
 | SDK → Record list | Record list | All stored recordings, mixed search over title, tags, and transcription | `NativeRecordListViewController` |
 | SDK → Record detail | Record detail | Transcription, summary, translation, audio playback and amplitude; trigger offline transcribe / summarize / translate tasks | `NativeRecordDetailViewController` |
 | Me | Personal settings | User info, rename nickname, device management, diagnostic logs, perfusion debugging, logout | `MineViewController` |
@@ -306,16 +306,19 @@ Custom BLE provisioning explicitly depends on `ThingSmartBusinessExtensionKit` a
 - **What**: After creating or selecting a home, **set the current home** (e.g. via `updateCurrentFamilyId`) so the SDK loads device list and permissions for that home.
 - **Note**: With a single home, call update current home during home or device-list init to avoid an empty list or permission issues.
 
-### 9. Native SDK Recording Pipeline (NativeSDKViewController.m / NativeAudioService.m)
+### 9. Native SDK Recording and Dialogue Translation Pipeline (NativeSDKViewController.m / FaceToFaceTranslationViewController.m / NativeAudioService.m)
 
 - **Entry**: the SDK tab.
 - **What**: If you do not use the mini program panel, build your own recording UI on `ThingAudioRecordInterface` (shipped with `ThingSmartAIVoiceBizBundle`). The Demo wraps `ThingAudioDetectManagerNative` in `NativeAudioService` and guarantees that every callback is delivered on the main thread.
 - **Capabilities**:
-  - Audio source: phone microphone (`ThingSystemMic16KMono`) or a paired audio device in the current home.
-  - Processing switches: ASR, NLG translation, TTS playback.
+  - Pages: standard recording and face-to-face translation use separate screens; open the latter from the entry card on the recording screen.
+  - Input source: configure the left and right sides independently with the phone microphone, system Bluetooth microphone, or a paired audio device in the current home.
+  - TTS: independently configure each side for phone speaker, system Bluetooth, or direct device output; direct device output supports OPUS SILK / CELT.
+  - Processing: ASR and translation are always enabled for face-to-face dialogue; TTS playback can be toggled independently for each side.
   - Languages: 14 common languages each for source and target (zh/en/ja/ko/fr/de/es/ru/it/pt/th/vi/ar/hi).
-  - Recording control: start, pause, resume, stop, with a live waveform plus state and duration readouts.
-  - Live results: streaming ASR text, streaming translation text, and an SDK event log.
+  - Speaker: the bottom left/right buttons map to `f2fChannel` 0/1. Tap either side while idle or paused to call `startAudioRecording`; while recording, only the active side can be tapped to call `pauseRecordTransfer`, after which the next speaker can be selected.
+  - Recording control: start, pause, and stop with a live waveform plus state and duration readouts; standard recording still supports resume.
+  - Live results: streaming ASR and translation update left/right conversation bubbles. An unfinished segment without recognized text keeps reusing the current “Recognizing” bubble; a new sentence is created only after text has been recognized and an End status is received.
 - **Note**: `addRecordListener:deviceId:` and `removeRecordListener:deviceId:` must be paired with the same instance and the same `deviceId`, otherwise callbacks leak.
 
 ### 10. Record List and Detail (NativeRecordListViewController.m / NativeRecordDetailViewController.m)

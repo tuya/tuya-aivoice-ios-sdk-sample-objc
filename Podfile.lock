@@ -557,12 +557,12 @@ PODS:
     - ThingAvLoggerSDK
     - ThingInferenceSDK
   - ThingAudioRDXModuleInterface (1.0.0)
-  - ThingAudioRecordInterface (1.11.3):
+  - ThingAudioRecordInterface (1.11.5):
     - ThingFoundationKit
     - ThingLogMacro
   - ThingAudioRecordLivingActivityProtocol (1.2.0):
     - ThingFoundationKit
-  - ThingAudioRecordModule (1.12.23):
+  - ThingAudioRecordModule (1.12.27):
     - AFNetworking
     - FMDB
     - GodzillaMiniIService
@@ -1245,7 +1245,7 @@ PODS:
     - ThingSmartBaseKit
     - ThingStorageGroupInterface
     - ThingTarKit
-  - ThingLanguageEscape (0.1.3):
+  - ThingLanguageEscape (0.1.4):
     - ThingAnnotationFoundation
     - ThingFoundationKit
     - ThingLanguageGroupInterface
@@ -1437,7 +1437,7 @@ PODS:
   - ThingOnAppAIBaseKit (1.1.1):
     - ThingOnAppAILoggerSDK
     - ThingSmartUtil
-  - ThingOnAppAILoggerSDK (0.0.2)
+  - ThingOnAppAILoggerSDK (1.0.1)
   - ThingOpenSSLSDK (1.1.1-w.4)
   - ThingOpusCodec (1.0.6)
   - ThingOTAGeneralExternalAPI (1.1.2)
@@ -1732,7 +1732,7 @@ PODS:
     - ThingLogMacro
     - ThingOEMConfig
     - ThingUIKit
-  - ThingSmartActivatorBizBundle (7.8.0.3):
+  - ThingSmartActivatorBizBundle (7.8.0.4):
     - DACircularProgress
     - dsBridge (= 3.0.202.2)
     - HMSegmentedControl (= 1.5.7-v1.5.7.thing.1)
@@ -1838,7 +1838,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLightScenePlugAPI (= 1.0.1)
@@ -1953,7 +1953,7 @@ PODS:
     - ThingModuleServices
     - ThingSmartActivatorKit
     - ThingSmartDeviceKit
-  - ThingSmartAIVoiceBizBundle (7.8.1.8):
+  - ThingSmartAIVoiceBizBundle (7.8.1.12):
     - AFNetworking
     - AFNetworking/NSURLSession
     - AFNetworking/Reachability
@@ -2013,9 +2013,9 @@ PODS:
     - ThingAudioFileRecorderSDK (= 1.1.0)
     - ThingAudioProcessSDK (= 1.3.1)
     - ThingAudioRDXModuleInterface (= 1.0.0)
-    - ThingAudioRecordInterface (= 1.11.3)
+    - ThingAudioRecordInterface (= 1.11.5)
     - ThingAudioRecordLivingActivityProtocol (= 1.2.0)
-    - ThingAudioRecordModule (= 1.12.23)
+    - ThingAudioRecordModule (= 1.12.27)
     - ThingAuthorizationServices (= 0.5.1)
     - ThingAutomaticSpeechRecognitionModule (= 0.11.0)
     - ThingAutoTrackAPI (= 1.2.0)
@@ -2077,7 +2077,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLibevent (= 1.4.0)
@@ -2099,7 +2099,7 @@ PODS:
     - ThingOEMConfig (~> 1.60)
     - ThingOggPackerSDK (= 1.1.1)
     - ThingOnAppAIBaseKit (= 1.1.1)
-    - ThingOnAppAILoggerSDK (~> 0.0)
+    - ThingOnAppAILoggerSDK (~> 1.0)
     - ThingOpenSSLSDK (~> 1.1.1-w.4)
     - ThingOpusCodec (~> 1.0)
     - ThingOTAGeneralExternalAPI (= 1.1.2)
@@ -2180,7 +2180,7 @@ PODS:
     - TUNIApDirectlyDeviceManager (= 6.3.4)
     - TUNIAPIManagerKit (= 1.20.1)
     - TUNIAssociationControlManager (= 7.7.0)
-    - TUniAudioDetectManager (= 7.8.5)
+    - TUniAudioDetectManager (= 7.8.10)
     - TUNIAudioManager (= 1.7.2)
     - TUNIAuthorizeManager (= 1.6.5)
     - TUNIBaseKit (= 3.37.3)
@@ -2235,8 +2235,8 @@ PODS:
     - TUNIThingControlManager (= 6.4.2)
     - TUNIUploadFileManager (= 1.9.0)
     - TUNIVirtualExperienceManager (= 1.1.2)
-    - TUNIWatchManager (= 1.3.9)
-    - TUNIWearKit (= 3.1.5)
+    - TUNIWatchManager (= 1.3.11)
+    - TUNIWearKit (= 3.1.10)
     - UICKeyChainStore
     - YYModel
   - ThingSmartAudioKit (6.11.5):
@@ -2254,7 +2254,7 @@ PODS:
     - ThingSmartNetworkKit (~> 5.0)
     - ThingSmartUtil (~> 5.0)
     - YYModel
-  - ThingSmartBaseKitBizBundle (7.8.0.3):
+  - ThingSmartBaseKitBizBundle (7.8.0.4):
     - EZAudio
     - EZAudio/Core
     - EZAudio/Full
@@ -2331,7 +2331,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLightScenePlugAPI (= 1.0.1)
@@ -2461,7 +2461,7 @@ PODS:
     - ThingThemeModule
     - ThingUIKit
     - TRCTResourceManager
-  - ThingSmartBizKitBizBundle (7.8.0.3):
+  - ThingSmartBizKitBizBundle (7.8.0.5):
     - dsBridge (= 3.0.202.2)
     - FMDB
     - FMDB/standard
@@ -2570,7 +2570,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLightScenePlugAPI (= 1.0.1)
@@ -2594,7 +2594,7 @@ PODS:
     - ThingNetworkAreaInterceptorAPI (= 1.1.11-feature-anonymize-4.4.0.1)
     - ThingNormalUI (~> 0.4)
     - ThingOEMConfig (~> 1.60)
-    - ThingOnAppAILoggerSDK (~> 0.0)
+    - ThingOnAppAILoggerSDK (~> 1.0)
     - ThingOpenSSLSDK (~> 1.1.1-w.4)
     - ThingOTAGeneralExternalAPI (= 1.1.2)
     - ThingOTAGeneralPlugAPI (= 1.2.1)
@@ -2733,7 +2733,7 @@ PODS:
     - ThingModuleServices
     - ThingSmartDeviceCoreKit
     - ThingTacticsManager
-  - ThingSmartBusinessExtensionKit (7.8.0.4):
+  - ThingSmartBusinessExtensionKit (7.8.0.5):
     - libextobjc
     - libextobjc/EXTADT
     - libextobjc/EXTConcreteProtocol
@@ -2790,7 +2790,7 @@ PODS:
     - ThingSmartMatterInterfaceAPI (= 1.7.1)
     - ThingSmartMessageKit (= 5.7.0)
     - ThingSmartMQTTChannelKit (= 5.8.3)
-    - ThingSmartNetworkKit (= 5.12.2)
+    - ThingSmartNetworkKit (= 5.12.3)
     - ThingSmartPairingCoreKit (= 5.7.4)
     - ThingSmartShareKit (= 5.4.0)
     - ThingSmartSocketChannelKit (= 5.0.12)
@@ -2798,7 +2798,7 @@ PODS:
     - ThingSmartUtil (= 5.23.2)
     - ThingStorageGroupInterface (= 0.2.2)
     - YYModel
-  - ThingSmartBusinessExtensionKitBLEExtra (7.8.0.3):
+  - ThingSmartBusinessExtensionKitBLEExtra (7.8.0.4):
     - ThingAnnotationFoundation (= 0.6.1)
     - ThingBLEHomeManager (= 1.14.3)
     - ThingBLEInterfaceImpl (= 0.22.3)
@@ -2823,7 +2823,7 @@ PODS:
     - ThingSmartDeviceCoreKit (= 5.29.0.2)
     - ThingSmartDeviceKit (= 5.16.0)
     - ThingSmartMQTTChannelKit (= 5.8.3)
-    - ThingSmartNetworkKit (= 5.12.2)
+    - ThingSmartNetworkKit (= 5.12.3)
     - ThingSmartPairingCoreKit (= 5.7.4)
     - ThingSmartShareKit (= 5.4.0)
     - ThingSmartSocketChannelKit (= 5.0.12)
@@ -2871,7 +2871,7 @@ PODS:
     - ThingSmartSocketChannelKit (~> 5.0)
     - ThingSmartUtil (~> 5.19)
     - YYModel
-  - ThingSmartDeviceDetailBizBundle (7.8.1.3):
+  - ThingSmartDeviceDetailBizBundle (7.8.1.4):
     - dsBridge (= 3.0.202.2)
     - FMDB/SQLCipher
     - GodzillaMiniIService (= 1.0.1)
@@ -2984,7 +2984,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLightScenePlugAPI (= 1.0.1)
@@ -3345,7 +3345,7 @@ PODS:
   - ThingSmartDoorLockModuleService (1.1.5)
   - ThingSmartEventPredefined (1.3.1)
   - ThingSmartEventPredefined_Public (0.0.60)
-  - ThingSmartFamilyBizBundle (7.8.0.3):
+  - ThingSmartFamilyBizBundle (7.8.0.4):
     - GodzillaMiniIService (= 1.0.1)
     - GodzillaMiniOpenAPI (= 3.44.0)
     - HMSegmentedControl (= 1.5.7-v1.5.7.thing.1)
@@ -3441,7 +3441,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLightScenePlugAPI (= 1.0.1)
@@ -3590,7 +3590,7 @@ PODS:
     - ThingGroupHandleSktAPI
     - ThingModuleManager
     - ThingSmartDeviceKit
-  - ThingSmartHomeKit (7.8.0.5):
+  - ThingSmartHomeKit (7.8.0.6):
     - ThingBluetooth (= 5.7.0)
     - ThingMachRegister (= 0.8.1)
     - ThingMbedtls (= 3.6.5)
@@ -3609,7 +3609,7 @@ PODS:
     - ThingSmartFeedbackKit (= 5.0.3)
     - ThingSmartMessageKit (= 5.7.0)
     - ThingSmartMQTTChannelKit (= 5.8.3)
-    - ThingSmartNetworkKit (= 5.12.2)
+    - ThingSmartNetworkKit (= 5.12.3)
     - ThingSmartPairingCoreKit (= 5.7.4)
     - ThingSmartSceneCoreKit (= 5.23.3.2)
     - ThingSmartSceneKit (= 4.0.2)
@@ -3706,7 +3706,7 @@ PODS:
     - ThingUIKit
   - ThingSmartLogger (5.1.1):
     - ThingSmartBaseKit
-  - ThingSmartMapKitBizBundle (7.5.0.9):
+  - ThingSmartMapKitBizBundle (7.5.0.10):
     - boost-for-react-native
     - DoubleConversion
     - Folly (= 2018.10.22.00)
@@ -3808,7 +3808,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLightScenePlugAPI (= 1.0.1)
@@ -3885,7 +3885,7 @@ PODS:
     - YYModel
   - ThingSmartMatterInterfaceAPI (1.7.1):
     - ThingSmartDeviceCoreKit
-  - ThingSmartMatterKit (7.8.0.3):
+  - ThingSmartMatterKit (7.8.0.4):
     - ThingBluetooth (= 5.7.0)
     - ThingMbedtls (= 3.6.5)
     - ThingOpenSSLSDK (~> 1.1.1-w.4)
@@ -3897,7 +3897,7 @@ PODS:
     - ThingSmartCryption
     - ThingSmartDeviceCoreKit (= 5.29.0.2)
     - ThingSmartMQTTChannelKit (= 5.8.3)
-    - ThingSmartNetworkKit (= 5.12.2)
+    - ThingSmartNetworkKit (= 5.12.3)
     - ThingSmartSocketChannelKit (= 5.0.12)
     - ThingSmartUtil (= 5.23.2)
     - YYModel
@@ -3907,7 +3907,7 @@ PODS:
   - ThingSmartMessageKit (5.7.0):
     - ThingSmartBaseKit
     - YYModel
-  - ThingSmartMiniAppBizBundle (7.8.0.3):
+  - ThingSmartMiniAppBizBundle (7.8.0.4):
     - dsBridge (= 3.0.202.2)
     - GodzillaLogManager (= 1.1.5)
     - GodzillaMiniBaseKit (= 3.46.0)
@@ -4007,7 +4007,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLightScenePlugAPI (= 1.0.1)
@@ -4097,10 +4097,10 @@ PODS:
     - YYModel
   - ThingSmartMQTTChannelKit (5.8.3):
     - ThingSmartUtil (>= 5.0.0)
-  - ThingSmartNetworkKit (5.12.2):
+  - ThingSmartNetworkKit (5.12.3):
     - ThingSmartUtil (>= 5.19.0)
     - YYModel
-  - ThingSmartOutdoorKit (7.8.0.3):
+  - ThingSmartOutdoorKit (7.8.0.4):
     - ThingAnnotationFoundation (= 0.6.1)
     - ThingFoundationKit (= 1.25.3)
     - ThingKVStorageLibrary (= 1.0.3)
@@ -4112,7 +4112,7 @@ PODS:
     - ThingSmartCryption
     - ThingSmartDeviceCoreKit (= 5.29.0.2)
     - ThingSmartMQTTChannelKit (= 5.8.3)
-    - ThingSmartNetworkKit (= 5.12.2)
+    - ThingSmartNetworkKit (= 5.12.3)
     - ThingSmartSocketChannelKit (= 5.0.12)
     - ThingSmartUtil (= 5.23.2)
     - ThingStorageGroupInterface (= 0.2.2)
@@ -4131,7 +4131,7 @@ PODS:
     - ThingSmartSocketChannelKit (>= 5.0.0)
     - ThingSmartUtil (>= 5.19.0)
     - YYModel
-  - ThingSmartPanelBizBundle (7.8.1.4):
+  - ThingSmartPanelBizBundle (7.8.1.6):
     - ATGestureLockView (= 0.2.3-anonymize.1)
     - boost-for-react-native
     - DACircularProgress
@@ -4333,7 +4333,7 @@ PODS:
     - ThingKVStorageLibrary (~> 1.0)
     - ThingKVStorageService (~> 0.2)
     - ThingLanguageDynamicBiz (= 0.2.0)
-    - ThingLanguageEscape (= 0.1.3)
+    - ThingLanguageEscape (= 0.1.4)
     - ThingLanguageGroupInterface (= 0.2.0)
     - ThingLanguageManager (= 0.2.1)
     - ThingLightScenePlugAPI (= 1.0.1)
@@ -4368,7 +4368,7 @@ PODS:
     - ThingNormalUI (~> 0.4)
     - ThingNotificationsAuthManager (= 0.1.6)
     - ThingOEMConfig (~> 1.60)
-    - ThingOnAppAILoggerSDK (~> 0.0)
+    - ThingOnAppAILoggerSDK (~> 1.0)
     - ThingOpenSSLSDK (~> 1.1.1-w.4)
     - ThingOpusCodec (~> 1.0)
     - ThingOTAGeneralExternalAPI (= 1.1.2)
@@ -4864,7 +4864,7 @@ PODS:
     - ThingSmartDeviceCoreKit (~> 5.0)
     - ThingSmartNetworkKit (~> 5.10)
     - ThingSmartUtil (~> 5.23)
-  - ThingSmartSweeperKit (7.8.0.3):
+  - ThingSmartSweeperKit (7.8.0.4):
     - ThingAvLoggerSDK (= 1.3.0)
     - ThingCloudStorageSignatureTools (= 1.2.1)
     - ThingMbedtls (= 3.6.5)
@@ -4877,7 +4877,7 @@ PODS:
     - ThingSmartCryption
     - ThingSmartDeviceCoreKit (= 5.29.0.2)
     - ThingSmartMQTTChannelKit (= 5.8.3)
-    - ThingSmartNetworkKit (= 5.12.2)
+    - ThingSmartNetworkKit (= 5.12.3)
     - ThingSmartP2pChannelKit (= 6.12.1)
     - ThingSmartSocketChannelKit (= 5.0.12)
     - ThingSmartUtil (= 5.23.2)
@@ -5477,7 +5477,7 @@ PODS:
     - TUNIAPIManagerKit
     - TUNINativeBridgeManager
     - YYModel
-  - TUniAudioDetectManager (7.8.5):
+  - TUniAudioDetectManager (7.8.10):
     - ThingAudioRecordInterface
     - ThingBluetoothInterface
     - ThingLogMacro
@@ -6191,14 +6191,14 @@ PODS:
     - ThingSmartNetworkKit
     - TUNIAPIManagerKit
     - YYModel
-  - TUNIWatchManager (1.3.9):
+  - TUNIWatchManager (1.3.11):
     - ThingHealthWatchManager
     - TUNIAPIManagerKit
     - YYModel
-  - TUNIWearKit (3.1.5):
-    - TUniAudioDetectManager (= 7.8.5)
+  - TUNIWearKit (3.1.10):
+    - TUniAudioDetectManager (= 7.8.10)
     - TUNIQQMusicManager (= 1.1.13)
-    - TUNIWatchManager (= 1.3.9)
+    - TUNIWatchManager (= 1.3.11)
   - TUNIWebSocketManager (1.1.0):
     - ThingModuleManager
     - ThingWebsocketChannelService
@@ -6220,6 +6220,7 @@ PODS:
 
 DEPENDENCIES:
   - ThingAIVoiceDebugKit (from `./Modules/ThingAIVoiceDebugKit`)
+  - ThingAudioRecordModule (= 1.12.27)
   - ThingSmartActivatorBizBundle (~> 7.8.0)
   - ThingSmartAIVoiceBizBundle (~> 7.8.0)
   - ThingSmartBaseKitBizBundle (~> 7.8.0)
@@ -6936,9 +6937,9 @@ SPEC CHECKSUMS:
   ThingAudioFileRecorderSDK: 55e4eaa78810556f4f90e153aa8ee3ed399dd8b9
   ThingAudioProcessSDK: 04c08ca952b6b8f1c5febe09a51235e9b9e89bc8
   ThingAudioRDXModuleInterface: be97257e73af2414b958d67cec3a25fd3b0dbacd
-  ThingAudioRecordInterface: 6f6cbd03d072e8539f386f193f62d80fd5fb97e5
+  ThingAudioRecordInterface: d3d7b56be9c524c60fff15a4037c304f7e2b4e7e
   ThingAudioRecordLivingActivityProtocol: 02274ad63b5e7535f52e9472115bb23c85d57373
-  ThingAudioRecordModule: 5df8aa5e0dc5ad6da7ca867c2aab71b53562b618
+  ThingAudioRecordModule: 56bd3b5f7ec37a77562f8e4088f2cdea817d92e1
   ThingAudioSpectrum: dcb932bdddcfa5b582c901a18b55f2f7b815c073
   ThingAuthInterface: fa9c7ec00a456cb447b11924242920353f3f4949
   ThingAuthorizationServices: 3c59787ba1739a0fa34a09216cc4d0b022b106a4
@@ -7046,7 +7047,7 @@ SPEC CHECKSUMS:
   ThingKVStorageLibrary: fac21e51e8f1d3e13b69d53a3b7e0dcd3293c6f0
   ThingKVStorageService: c7698a6310e198b55c386a8bc6a63a8bf496f5e3
   ThingLanguageDynamicBiz: 9b4bbbe16bd99d41d559500e1e795bfad9bb39a2
-  ThingLanguageEscape: cdfb1f7beacdc1e92ec4cb6154fc5aea73b43f09
+  ThingLanguageEscape: f97122a0900ac85b82438a97a6acd36abafc3a4b
   ThingLanguageGroupInterface: 1da2d9d97cef707e43cefece1bd7885e2cba361b
   ThingLanguageManager: 07998dae49fa96fcaaf6b9c3fa55e20404ef3b0b
   ThingLibevent: 1d753a0353c32c1dc6a3632acd275d4113dca92e
@@ -7060,7 +7061,7 @@ SPEC CHECKSUMS:
   ThingLoginModuleBizKit: de3c9dc7811fc333b9cd146b753682d0621b776a
   ThingLoginSktAPI: 335aa9a82c4d11d6f77faa789cbdda4596079a0b
   ThingLoginWithAmzSDK: 99ad03e2a581b2ab51a4ad3476bd24a0c0662d6c
-  ThingLogMacro: 2b9bb80625e9eeca2db293dc870be017c7b0ba8a
+  ThingLogMacro: 59f411f4b4bec2aaa381b06b49063931bc065520
   ThingLottie: e091b0b241bef92f6eefcadc501b5f2bd74451ea
   ThingMachRegister: ed6653c8f25a1ee853a268abd42af4d732cc21bb
   ThingMainPageLink: f43cd46aec351146cdeddd8f0306ecd609a0e2d6
@@ -7085,7 +7086,7 @@ SPEC CHECKSUMS:
   ThingOEMConfig: 1bc34ac14a9410c709f87e37c68a9f9c36cfe3e5
   ThingOggPackerSDK: 10cf94b6fd3219ae91067502bdb28969e9f7be8c
   ThingOnAppAIBaseKit: 68eec211f9ea243ab8b633f105a0355726c2a8e6
-  ThingOnAppAILoggerSDK: 94f1f7ccee289650c0fd361106ff690c8496963c
+  ThingOnAppAILoggerSDK: f99d634bcbfde01e8ae333054d78ee8eade12ad6
   ThingOpenSSLSDK: 838c9c839f77cad49e23fa007221794965325459
   ThingOpusCodec: 43a8ffdd2a12c1244baad1d7233d21572c03588a
   ThingOTAGeneralExternalAPI: 1a04e208679041277a074f9e13e30e1f5badbdea
@@ -7134,35 +7135,35 @@ SPEC CHECKSUMS:
   ThingSettingsPlugAPI: 9264bad026c361b8daf9d59d3ea28c8eeee2d8b1
   ThingSiriShortcutModule: 5e03a4cf941fa3d99a283dd1a4eaf1191bffd800
   ThingSmartActionDialog: 04c7c03fb226a91a0a21551b4916ca367b3c0523
-  ThingSmartActivatorBizBundle: 4f11c73ee9582a0cf2b559da51aae80a51b2979c
+  ThingSmartActivatorBizBundle: 896787c66146336ef877a8f9a0650f67213b0f44
   ThingSmartActivatorBizKit: 420df6f64bf219db85fe595bce8557829d28848b
   ThingSmartActivatorCoreKit: 4f01ac734cd1e4b837820a226b785d615eaf318d
   ThingSmartActivatorDiscoveryManager: 78ade606da30a412899de23113426e7c16dd7663
   ThingSmartActivatorKit: 9c09d6e04c0306d5c7c4be5ed6457beb7b4385ad
   ThingSmartActivatorLink: 926de73d9244dbb5d8713776098d40025fd53759
-  ThingSmartAIVoiceBizBundle: de6643bc4d401c8bb91038a643c5a6ef3f19af89
+  ThingSmartAIVoiceBizBundle: 0429242a538c1eec083d25dff1a24e22c9014953
   ThingSmartAudioKit: e64cd416898a78f078f39a03abdbccd33e3d568c
   ThingSmartAVBaseKit: 972910c2281eecdfe4bae7ea2161f58867fdfaa3
   ThingSmartBaseBLEKit: 9b972d8fe400f32fb068ddb0a44f2f2c46286ce5
   ThingSmartBaseKit: 23783b2c9d8a12d4e8b39bb66f77cac64128ebfe
-  ThingSmartBaseKitBizBundle: 203b0b641a13c654b903a60a6b9b53bdb1d275d5
+  ThingSmartBaseKitBizBundle: 424126a2206abe50d95f5cce6c08e463d7f77d3c
   ThingSmartBeacon: b67651528826c70b1367e5627795813350fb1c71
   ThingSmartBeaconKit: 28bbcf5dc9dfe88b2ada36b04d849cb2ebca7847
   ThingSmartBizCore: 6ebe4cbaf511df4cdfa6823b4fe505b1568e6574
-  ThingSmartBizKitBizBundle: 17af96047e4a4985d89de64d31153a5e122b1be9
+  ThingSmartBizKitBizBundle: dba05afb664d8176b2eb1e8c1f689d1f7ce94950
   ThingSmartBLECoreKit: 41a7224a0d3d0cc5568ce0fc1dd17e504fe2d38b
   ThingSmartBLEKit: 25536e6f88448cc77a4a99e920ab46627c044ad9
   ThingSmartBLEMeshKit: f7fcf5f66e7a510da586e2e2001d8de29afc7489
   ThingSmartBLEModule: 54daa34e65cea7692042c428e4d2ed58ef119810
-  ThingSmartBusinessExtensionKit: 440ba93e20f344f32a4463302c1049f401b8e8ae
-  ThingSmartBusinessExtensionKitBLEExtra: 66a503224ae93ea6d5f73e04191ebffb1069743f
+  ThingSmartBusinessExtensionKit: 1228c7d1a0493c89cb39767d7625ce815d93c372
+  ThingSmartBusinessExtensionKitBLEExtra: 2b417f21166c1164bd5fd87828e5408a64c94ca9
   ThingSmartBusinessLibrary: 38f57d4c21babc1c82398f98fa1e7c191e1178d5
   ThingSmartCallChannelKit: 1300c99edbb5013643ee470ca6b7282b12effdc7
   ThingSmartCallCounterKit: d66eaf519eac50e29d867fe8729fca5941afe120
   ThingSmartClientConfigModule: 78cefb9f25489ec008e54d6a72b3c22f2c2a2152
   ThingSmartCryption: 33906a7bf4d19f26bf90dccde474e2bcba46c21f
   ThingSmartDeviceCoreKit: 7a6f86ab86cd7b9ef1b2194f3dfd4b37332d9ad8
-  ThingSmartDeviceDetailBizBundle: d07087fb2628e7595209c518ddd84b188fd7973f
+  ThingSmartDeviceDetailBizBundle: b35d3e0c41961a4ab9266cfdd2b5c2589da6df6e
   ThingSmartDeviceDetailLink: 10343ceba15ac01ac553e00a75d1da9ae5fb1938
   ThingSmartDeviceKit: 79b774d266072c1a75427358fea78dc053d71eaf
   ThingSmartDeviceKitBizBundle: 5c568b5a4e1e05f931e235341989e8f53e1b06dd
@@ -7170,7 +7171,7 @@ SPEC CHECKSUMS:
   ThingSmartDoorLockModuleService: 8005248ac966b34f2881fb6ba6238577fe16e2b2
   ThingSmartEventPredefined: 16eb37c3aa845db781f6f80571b8ef4ed8be9d40
   ThingSmartEventPredefined_Public: 4aaf888a55b4adccc464ba863ebbff915cd081ec
-  ThingSmartFamilyBizBundle: 5048fc979e9521b757194769710119f5ee172d15
+  ThingSmartFamilyBizBundle: f79a23e3f99c5b4aacff53fdfad16e7b605db9d2
   ThingSmartFamilyBizKit: 6abf56a7fe19fa076097c4f39c02ea1a705a611b
   ThingSmartFamilyDefaultUISkin: f5387d125fae0b29cc96655319b83d3652409da9
   ThingSmartFeedbackKit: c014168a21c305f6780a716c8e259a1704e5bdc1
@@ -7179,27 +7180,27 @@ SPEC CHECKSUMS:
   ThingSmartGeofenceModule: e2e2b38bb949ed205bb23d2ead4031ee6954e52c
   ThingSmartGeofenceService: efeef7c04447f06808eab5705247d7763c7cce0d
   ThingSmartGroupLink: 6d5a2b093c37d22ac5168de0df5e326e32c87310
-  ThingSmartHomeKit: c59631ab3ba0f9b81450e43f3b7f43d9ee6d8d28
+  ThingSmartHomeKit: 5cd79bc1701cc03c7e84db0becac01dc1653aa67
   ThingSmartHouseBizKit: ede219c0962e3f5d900efd9afd98dd92403af62b
   ThingSmartIAPKit: ee4de7facde5bc7756f6d3871ca72038d10c518a
   ThingSmartIntelligenceApi: fcf6bd4c664c85f06a62986fbed24d65299dd240
   ThingSmartIntelligenceModule: 5ef6db05526380aa7791e6d6e5ebe1f5b160aa69
   ThingSmartLocationService: 51226a67af7612e557f25b68929da6b1492b4e77
   ThingSmartLogger: 42989a7711b5d9002dbb15fc7e0474b4fb36d3e4
-  ThingSmartMapKitBizBundle: 37695c8aaa5e08c69c01871c3ee077095dbbc400
+  ThingSmartMapKitBizBundle: a52a4b247dc6929da93c84b43f974dd8bff57049
   ThingSmartMatterInterface: a7cd8a777c9accaa381906993a477ab09ec107e2
   ThingSmartMatterInterfaceAPI: 677a68b8b757ee07c47c5eea321a2aa9fbac5312
-  ThingSmartMatterKit: 204cb82c9ec952b797f5cf3a128874a5f706365d
+  ThingSmartMatterKit: 96864e6245778185a6f3f6d1302f2ca4fbe9c6dc
   ThingSmartMediaKit: 11e030a942df4d0a788a54e13d2991f295240694
   ThingSmartMessageKit: 9ddfc34295498d8fec629af7ecaf70962300860d
-  ThingSmartMiniAppBizBundle: 27b19c42dae8745bf535352be681502d493d3338
+  ThingSmartMiniAppBizBundle: 51e6667da37735525247cdc537490b2f73504cd3
   ThingSmartMQTTChannelKit: 1e14862ec1af29d559dd8df968fb3276f86c746e
-  ThingSmartNetworkKit: fcf9e211701e44a8559d72e1e01cf515c765ca0c
-  ThingSmartOutdoorKit: a988f647988773b885f631be392c2dc7f67527bd
+  ThingSmartNetworkKit: d91f4cd80aff2c70ffa38653faf807fec208e69f
+  ThingSmartOutdoorKit: f30c03d7e9f5291c4668b6ee1a7353ef592a46c8
   ThingSmartOutdoorPlugAPI: 4248dc7bc4bc2190a15080a8c96f7835c36cad9e
   ThingSmartP2pChannelKit: e566196de8dbffb3937755619ce37e79ecd2ede1
   ThingSmartPairingCoreKit: c6fca006a84f293e648c3db481107b251ce1d08e
-  ThingSmartPanelBizBundle: 3d9dce0ae39f393a67ebb258ba16930e6616c160
+  ThingSmartPanelBizBundle: 6467685639cf397e2b2eda2810bbb1787331762a
   ThingSmartPanelLink: 42d9e3ed5a193c63412389a510884b35e3c8cb79
   ThingSmartPrivateCloudPlugAPI: 3f36f1d30a0a132670ed4bd6ad8b0ad298a95491
   ThingSmartPushConfirmModule: 1f6c2ed7d6c1406e2424b8a92928ae7f24c737a6
@@ -7216,7 +7217,7 @@ SPEC CHECKSUMS:
   ThingSmartSpeechModule: 39c772e7a65f07d7d0f6c2ddad4e4738bda6e0dd
   ThingSmartStreamBizKit: 03ac15e04a3323c4814cc9ff3aced0629a7db5e1
   ThingSmartStreamChannelKit: 38aa0702f9e32895d05ceb219aaaf0e5d07c8f08
-  ThingSmartSweeperKit: 159367a44798a5eb5006c92c90027fd472da8c2b
+  ThingSmartSweeperKit: 8a0eae1a2b29b0b356d0c278c6db9c8a36141298
   ThingSmartTimerKit: 6f853f74d67585bd6bf107bdcb2ff5f7511c4883
   ThingSmartUIConfigServices: 0a6654cc69d78f8088f4d0402494831427b277a9
   ThingSmartUserCenterBizKit: 788fce1ef7ef96a6b52b32ab7cc12a1cee8dee06
@@ -7341,7 +7342,7 @@ SPEC CHECKSUMS:
   TUNIAppInfoManager: b472886cb7d4f7e2449be614570eeba7cefb4a88
   TUNIASRManager: e6c778d4409db7aa229d2a469bdd39eeecc91897
   TUNIAssociationControlManager: c429063f558f2a8e24874badbda23ac53d4b77e8
-  TUniAudioDetectManager: fd3e02c72de8d17158d4d67c71187e964e8a38e8
+  TUniAudioDetectManager: 68122bed520dca022ec16b9a9a589c20a5c8b183
   TUNIAudioManager: d941a3d67bfd2afc0570b53e945a7fe2ed40fa2b
   TUNIAuthorizeManager: 503c61893856aff90dbd8268651de23f08883389
   TUNIBackgroundFetchManager: bf202d1d729629ad8a1e8e9e5718e77397d65a40
@@ -7441,8 +7442,8 @@ SPEC CHECKSUMS:
   TUNIUserInfoManager: e4962c9b672c90dbf96e26d3f0b38bb262e07fc6
   TUNIUtilsManager: 73e7c6b836f4bf47b3da4a94b32a0765d7ac0066
   TUNIVirtualExperienceManager: 646911b2fd655b8b7ad1cbdb85fd989a93b88602
-  TUNIWatchManager: 6f63aad936a0f373adff080c5b81062f4fcaebbe
-  TUNIWearKit: 65c4a2a511362172e0ab7888c213302c16550886
+  TUNIWatchManager: 70207de84670f4a06d9ee91dcce3792ab6b8c059
+  TUNIWearKit: 7dd3e58fca57e3cd3aa77754484bcf4b7771503d
   TUNIWebSocketManager: a398a52761b8e1d7dc986e114eff37f126640a8b
   TUNIWechatManager: 86569655d76a611d8d4ea027fceba2ec0f799693
   TUNIWidgetManager: 077431e823fa0c69fcf4da36de63aa8c7e0ad249
@@ -7450,6 +7451,6 @@ SPEC CHECKSUMS:
   yoga: 2f6c53bd50b0056c4622d0320e1cab6740f1ad85
   YYModel: 2a7fdd96aaa4b86a824e26d0c517de8928c04b30
 
-PODFILE CHECKSUM: 7efc6de2d692859f03a02bc0add9f60c789f8f14
+PODFILE CHECKSUM: cfd14c3faf531f9bb7df152b1400427538726b61
 
 COCOAPODS: 1.15.2

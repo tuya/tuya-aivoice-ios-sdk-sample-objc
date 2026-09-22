@@ -23,7 +23,7 @@ AI 音频业务包 Demo 地址：[tuya-aivoice-ios-sdk-sample-objc](https://gith
 |-----------|------|------|---------|
 | 首页 | 首页 | AI 笔记 / AI 翻译小程序卡片与快捷入口（录音、同声传译、实时转写、对话翻译）、我的设备列表、点击设备跳转面板 | `MainViewController`、`MiniAppRoutes.h`、`DeviceListView` |
 | 首页 → 右上角 + | 添加设备 | 正常添加（涂鸦配网 UI）、自定义添加（BLE 单点配网调试） | `ActivatorService`、`CustomBLEPairingViewController`、`CustomBLEPairingSession` |
-| SDK | 录音 | 录音来源选择（手机麦克风 / 已配网设备）、ASR / NLG 翻译 / TTS 开关、源语言与目标语言选择（14 种）、实时振幅波形、录音开始/暂停/继续/结束、实时 ASR 与翻译文本、SDK 事件日志 | `NativeSDKViewController`、`NativeAudioService` |
+| SDK | 录音 / 对话翻译 | 录音页提供独立的对话翻译入口；对话页支持左右按钮轮流发言，可配置手机、系统蓝牙或设备输入输出、双侧语言与 TTS，并将实时 ASR 和译文显示为左右对话气泡 | `NativeSDKViewController`、`FaceToFaceTranslationViewController`、`NativeAudioService` |
 | SDK → 录音列表 | 录音列表 | 全部已入库录音，支持按标题 / 标签 / 转写内容混合搜索 | `NativeRecordListViewController` |
 | SDK → 录音详情 | 录音详情 | 转写、总结、翻译内容展示，音频播放与振幅，支持发起离线转写 / 总结 / 翻译任务 | `NativeRecordDetailViewController` |
 | 我的 | 个人设置 | 展示用户信息、修改昵称、设备管理、上传诊断日志、灌流调试、退出登录 | `MineViewController` |
@@ -308,16 +308,19 @@ if (impl) {
 - **说明**：创建或选择家庭后，必须**设置当前家庭**（如通过 `updateCurrentFamilyId`），SDK 才会按该家庭拉取设备列表与权限。
 - **注意**：若仅有一个家庭，建议在首页或设备列表初始化时调用更新当前家庭，避免设备列表为空或权限异常。
 
-### 9. Native SDK 录音链路（NativeSDKViewController.m / NativeAudioService.m）
+### 9. Native SDK 录音与对话翻译链路（NativeSDKViewController.m / FaceToFaceTranslationViewController.m / NativeAudioService.m）
 
 - **入口**：底部「SDK」Tab。
 - **说明**：不使用小程序面板时，可通过 `ThingAudioRecordInterface`（随 `ThingSmartAIVoiceBizBundle` 一起引入）自行实现录音界面。Demo 用 `NativeAudioService` 统一封装了 `ThingAudioDetectManagerNative`，并保证所有回调切回主线程。
 - **能力**：
-  - 录音来源：手机麦克风（`ThingSystemMic16KMono`）或当前家庭下已配网的音频设备。
-  - 处理能力开关：ASR 识别、NLG 翻译、TTS 播报。
+  - 页面：普通录音与面对面对话翻译分别展示，录音页通过「面对面对话翻译」卡片进入对话页。
+  - 输入源：左、右两侧可分别选择手机麦克风、系统蓝牙麦克风或当前家庭下已配网的音频设备。
+  - TTS：左、右两侧可分别选择手机扬声器、系统蓝牙或设备直出；设备直出支持 OPUS SILK / CELT 编码。
+  - 处理能力：面对面对话固定开启 ASR 与翻译，左、右两侧可分别开启或关闭 TTS 播报。
   - 语种：源语言与目标语言各支持 14 种常用语种（中/英/日/韩/法/德/西/俄/意/葡/泰/越/阿/印地）。
-  - 录音控制：开始、暂停、恢复、结束，配合实时振幅波形、录音状态与时长展示。
-  - 实时结果：实时 ASR 文本、实时翻译文本、SDK 事件日志。
+  - 发言方：底部左右按钮分别对应 `f2fChannel` 0/1；空闲或暂停时点击任一侧调用 `startAudioRecording`，录音中仅当前侧可点击并调用 `pauseRecordTransfer`，暂停成功后再选择下一位发言方。
+  - 录音控制：开始、暂停、结束，配合实时振幅波形、录音状态与时长展示；普通录音仍支持恢复。
+  - 实时结果：ASR 原文和翻译结果按左右发言方实时更新到对话气泡；未识别出文本且未完成的断句持续复用当前“正在识别”气泡，已有文本并收到 End 后才创建下一句。
 - **注意**：录音监听器 `addRecordListener:deviceId:` 与 `removeRecordListener:deviceId:` 必须使用同一实例和同一 `deviceId` 成对调用，否则会造成回调泄漏。
 
 ### 10. 录音列表与详情（NativeRecordListViewController.m / NativeRecordDetailViewController.m）
