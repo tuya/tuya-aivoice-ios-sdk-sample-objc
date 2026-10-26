@@ -46,6 +46,8 @@
 	<string>需要使用蓝牙发现并添加智能设备</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>需要使用蓝牙发现并添加智能设备</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>将您在情绪树洞中录制的语音转成文字，供您校对；系统语音识别可能使用 Apple 的服务器。</string>
 	<key>UIDesignRequiresCompatibility</key>
 	<true/>
 </dict>

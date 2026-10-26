@@ -7,6 +7,7 @@
 #import "MainViewController.h"
 #import "MineViewController.h"
 #import "NativeSDKViewController.h"
+#import "EmotionChatViewController.h"
 
 @implementation MainTabBarController
 
@@ -42,7 +43,12 @@
         mineNav.tabBarItem.selectedImage = [UIImage systemImageNamed:@"person.fill"];
     }
 
-    self.viewControllers = @[ homeNav, sdkNav, mineNav ];
+    EmotionChatViewController *emotionVC = [[EmotionChatViewController alloc] init];
+    UINavigationController *emotionNav = [[UINavigationController alloc] initWithRootViewController:emotionVC];
+    emotionNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"树洞" image:[UIImage systemImageNamed:@"bubble.left.and.bubble.right"] tag:3];
+    emotionNav.tabBarItem.selectedImage = [UIImage systemImageNamed:@"bubble.left.and.bubble.right.fill"];
+
+    self.viewControllers = @[ homeNav, sdkNav, emotionNav, mineNav ];
 }
 
 @end

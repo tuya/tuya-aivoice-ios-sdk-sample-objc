@@ -503,7 +503,10 @@
 				DEVELOPMENT_TEAM = C38U3F4JC5;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Services/Pairing";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Services/Pairing",
+					"$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Views/Common",
+				);
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -524,7 +527,10 @@
 				DEVELOPMENT_TEAM = C38U3F4JC5;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = arm64;
 				GENERATE_INFOPLIST_FILE = YES;
-				HEADER_SEARCH_PATHS = "$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Services/Pairing";
+				HEADER_SEARCH_PATHS = (
+					"$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Services/Pairing",
+					"$(SRCROOT)/tuya-aivoice-ios-sdk-sample-objc/Views/Common",
+				);
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
