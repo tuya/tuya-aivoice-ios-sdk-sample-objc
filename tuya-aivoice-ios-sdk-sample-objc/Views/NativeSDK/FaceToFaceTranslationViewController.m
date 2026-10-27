@@ -19,6 +19,7 @@ static NSString * const kFaceToFacePhoneDeviceId = @"PHONE";
 @property (nonatomic, assign) ThingAudioTTSEncode ttsEncode;
 @property (nonatomic, copy) NSString *ttsDeviceId;
 @property (nonatomic, assign) BOOL ttsEnabled;
+@property (nonatomic, assign) ThingAudioTtsPlaybackMode ttsPlaybackMode;
 
 @end
 
@@ -49,7 +50,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
     return languages;
 }
 
-@interface FaceToFaceTranslationViewController () <ThingAudioRecordManagerDelegate>
+@interface FaceToFaceTranslationViewController () <ThingAudioRecordManagerDelegate, AVAudioPlayerDelegate>
 
 @property (nonatomic, copy) NSArray<ThingSmartDeviceModel *> *devices;
 @property (nonatomic, strong) FaceToFaceSideAudioConfig *leftAudioConfig;
@@ -72,9 +73,11 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
 @property (nonatomic, strong) UIButton *leftInputButton;
 @property (nonatomic, strong) UIButton *leftOutputButton;
 @property (nonatomic, strong) UIButton *leftTTSButton;
+@property (nonatomic, strong) UIButton *leftTTSPlaybackModeButton;
 @property (nonatomic, strong) UIButton *rightInputButton;
 @property (nonatomic, strong) UIButton *rightOutputButton;
 @property (nonatomic, strong) UIButton *rightTTSButton;
+@property (nonatomic, strong) UIButton *rightTTSPlaybackModeButton;
 @property (nonatomic, strong) UILabel *deviceHintLabel;
 @property (nonatomic, strong) UILabel *statusLabel;
 @property (nonatomic, strong) UIScrollView *conversationScrollView;
@@ -89,6 +92,19 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSString *> *bubbleKeyByResultKey;
 @property (nonatomic, strong) NSMutableDictionary<NSNumber *, NSString *> *activeSentenceKeyBySpeaker;
 @property (nonatomic, strong) NSMutableSet<NSString *> *recognizedSentenceKeys;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, ThingAudioRecordAsrResult *> *sentenceByBubbleKey;
+@property (nonatomic, strong) NSMutableDictionary<NSString *, UIButton *> *ttsButtons;
+@property (nonatomic, strong, nullable) AVAudioPlayer *ttsPlayer;
+@property (nonatomic, copy, nullable) NSString *playingBubbleKey;
+@property (nonatomic, copy, nullable) NSString *ttsRequestToken;
+@property (nonatomic, copy, nullable) NSString *previousAudioCategory;
+@property (nonatomic, copy, nullable) NSString *previousAudioMode;
+@property (nonatomic, assign) AVAudioSessionCategoryOptions previousAudioOptions;
+@property (nonatomic, assign) BOOL ttsActivatedAudioSession;
+@property (nonatomic, assign) BOOL ttsChangedAudioRoute;
+@property (nonatomic, strong, nullable) AVAudioSessionPortDescription *previousAudioInput;
+@property (nonatomic, assign) AVAudioSessionPortOverride previousAudioOutputOverride;
+@property (nonatomic, assign) ThingAudioTTSOutput playingTTSOutput;
 
 @end
 
@@ -116,6 +132,8 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
     self.bubbleKeyByResultKey = [NSMutableDictionary dictionary];
     self.activeSentenceKeyBySpeaker = [NSMutableDictionary dictionary];
     self.recognizedSentenceKeys = [NSMutableSet set];
+    self.sentenceByBubbleKey = [NSMutableDictionary dictionary];
+    self.ttsButtons = [NSMutableDictionary dictionary];
 
     [self setupUI];
     [self updateControls];
@@ -124,11 +142,24 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
                                              selector:@selector(applicationDidBecomeActive:)
                                                  name:UIApplicationDidBecomeActiveNotification
                                                object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(audioSessionInterrupted:)
+                                                 name:AVAudioSessionInterruptionNotification
+                                               object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(ttsAudioRouteChanged:)
+                                                 name:AVAudioSessionRouteChangeNotification
+                                               object:nil];
 }
 
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     [self loadDevices];
+}
+
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [self stopTTSPlayback];
 }
 
 - (void)viewDidDisappear:(BOOL)animated {
@@ -211,22 +242,24 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
     self.leftInputButton = [self configButtonWithTitle:@"输入：手机麦克风" action:@selector(leftInputButtonTapped:)];
     self.leftOutputButton = [self configButtonWithTitle:@"输出：系统蓝牙" action:@selector(leftOutputButtonTapped:)];
     self.leftTTSButton = [self configButtonWithTitle:@"TTS：开启" action:@selector(leftTTSButtonTapped:)];
+    self.leftTTSPlaybackModeButton = [self configButtonWithTitle:@"播放模式：实时播放" action:@selector(leftTTSPlaybackModeButtonTapped:)];
     self.rightInputButton = [self configButtonWithTitle:@"输入：系统蓝牙" action:@selector(rightInputButtonTapped:)];
     self.rightOutputButton = [self configButtonWithTitle:@"输出：未配置" action:@selector(rightOutputButtonTapped:)];
     self.rightTTSButton = [self configButtonWithTitle:@"TTS：关闭" action:@selector(rightTTSButtonTapped:)];
+    self.rightTTSPlaybackModeButton = [self configButtonWithTitle:@"播放模式：实时播放" action:@selector(rightTTSPlaybackModeButtonTapped:)];
     self.rightTTSButton.tintColor = UIColor.secondaryLabelColor;
 
     UIStackView *languageRow = [self equalRowWithViews:@[self.leftLanguageButton, self.rightLanguageButton]];
     [pageStack addArrangedSubview:[self cardWithTitle:@"对话语言" content:languageRow]];
 
     UIStackView *leftAudioRow = [self equalRowWithViews:@[self.leftInputButton, self.leftOutputButton]];
-    UIStackView *leftConfiguration = [[UIStackView alloc] initWithArrangedSubviews:@[leftAudioRow, self.leftTTSButton]];
+    UIStackView *leftConfiguration = [[UIStackView alloc] initWithArrangedSubviews:@[leftAudioRow, self.leftTTSButton, self.leftTTSPlaybackModeButton]];
     leftConfiguration.axis = UILayoutConstraintAxisVertical;
     leftConfiguration.spacing = 10;
     [pageStack addArrangedSubview:[self cardWithTitle:@"左侧音频配置" content:leftConfiguration]];
 
     UIStackView *rightAudioRow = [self equalRowWithViews:@[self.rightInputButton, self.rightOutputButton]];
-    UIStackView *rightConfiguration = [[UIStackView alloc] initWithArrangedSubviews:@[rightAudioRow, self.rightTTSButton]];
+    UIStackView *rightConfiguration = [[UIStackView alloc] initWithArrangedSubviews:@[rightAudioRow, self.rightTTSButton, self.rightTTSPlaybackModeButton]];
     rightConfiguration.axis = UILayoutConstraintAxisVertical;
     rightConfiguration.spacing = 10;
     [pageStack addArrangedSubview:[self cardWithTitle:@"右侧音频配置" content:rightConfiguration]];
@@ -358,6 +391,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
     config.inputDeviceId = kFaceToFacePhoneDeviceId;
     config.ttsEncode = ThingAudioTTSEncode_DEFAULT;
     config.ttsDeviceId = @"";
+    config.ttsPlaybackMode = ThingAudioTtsPlaybackModeImmediate;
     if (speaker == 0) {
         config.audioSource = ThingSystemMic16KMono;
         config.ttsOutput = ThingAudioTTSOutput_SYSTEM_BLUETOOTH;
@@ -439,7 +473,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
 - (void)presentOutputPickerForSpeaker:(NSInteger)speaker sourceView:(UIButton *)sourceView {
     if (self.operationPending) return;
     NSString *side = speaker == 0 ? @"左侧" : @"右侧";
-    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[NSString stringWithFormat:@"选择%@ TTS 输出", side] message:@"配置将在该侧下一次发言时生效" preferredStyle:UIAlertControllerStyleActionSheet];
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[NSString stringWithFormat:@"选择%@ TTS 输出", side] message:@"消息回听使用该侧当前输出配置；实时 TTS 在该侧下一次发言时生效" preferredStyle:UIAlertControllerStyleActionSheet];
     __weak typeof(self) weakSelf = self;
     [sheet addAction:[UIAlertAction actionWithTitle:@"手机扬声器" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         [weakSelf selectOutput:ThingAudioTTSOutput_SYSTEM_MIC encode:ThingAudioTTSEncode_DEFAULT deviceId:@"" title:@"手机扬声器" speaker:speaker];
@@ -467,6 +501,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
              deviceId:(NSString *)deviceId
                 title:(NSString *)title
               speaker:(NSInteger)speaker {
+    [self stopTTSPlayback];
     FaceToFaceSideAudioConfig *config = [self audioConfigForSpeaker:speaker];
     config.ttsOutput = output;
     config.ttsEncode = encode;
@@ -522,6 +557,38 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
     UIButton *button = [self ttsButtonForSpeaker:speaker];
     [button setTitle:config.ttsEnabled ? @"TTS：开启" : @"TTS：关闭" forState:UIControlStateNormal];
     button.tintColor = config.ttsEnabled ? UIColor.systemBlueColor : UIColor.secondaryLabelColor;
+    [self updateControls];
+}
+
+- (void)leftTTSPlaybackModeButtonTapped:(UIButton *)sender {
+    [self presentTTSPlaybackModePickerForSpeaker:0 sourceView:sender];
+}
+
+- (void)rightTTSPlaybackModeButtonTapped:(UIButton *)sender {
+    [self presentTTSPlaybackModePickerForSpeaker:1 sourceView:sender];
+}
+
+- (void)presentTTSPlaybackModePickerForSpeaker:(NSInteger)speaker sourceView:(UIButton *)sourceView {
+    FaceToFaceSideAudioConfig *config = [self audioConfigForSpeaker:speaker];
+    if (self.operationPending || !config.ttsEnabled) return;
+    NSString *side = speaker == 0 ? @"左侧" : @"右侧";
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:[NSString stringWithFormat:@"选择%@ TTS 播放模式", side]
+                                                                 message:@"实时播放不缓存；仅缓存不播放；播放并缓存同时执行。缓存保存完整句 MP3，配置将在该侧下一次发言时生效。"
+                                                          preferredStyle:UIAlertControllerStyleActionSheet];
+    NSArray<NSString *> *names = @[@"实时播放", @"仅缓存", @"播放并缓存"];
+    NSArray<NSNumber *> *modes = @[@(ThingAudioTtsPlaybackModeImmediate), @(ThingAudioTtsPlaybackModeDeferred), @(ThingAudioTtsPlaybackModePlayAndCache)];
+    for (NSUInteger index = 0; index < modes.count; index++) {
+        ThingAudioTtsPlaybackMode mode = modes[index].integerValue;
+        NSString *name = names[index];
+        NSString *title = mode == config.ttsPlaybackMode ? [name stringByAppendingString:@"  ✓"] : name;
+        [sheet addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            config.ttsPlaybackMode = mode;
+            [sourceView setTitle:[NSString stringWithFormat:@"播放模式：%@", name] forState:UIControlStateNormal];
+        }]];
+    }
+    [sheet addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [self configurePopover:sheet sourceView:sourceView];
+    [self presentViewController:sheet animated:YES completion:nil];
 }
 
 - (void)refreshLanguageTitles {
@@ -626,6 +693,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
 }
 
 - (void)startSpeaker:(NSInteger)speaker {
+    [self stopTTSPlayback];
     FaceToFaceSideAudioConfig *audioConfig = [self audioConfigForSpeaker:speaker];
     [self bindListenerToDeviceId:audioConfig.inputDeviceId];
     self.operationPending = YES;
@@ -668,6 +736,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
     config.needAsr = YES;
     config.needTranslate = YES;
     config.needTTS = audioConfig.ttsEnabled;
+    config.ttsPlaybackMode = @(audioConfig.ttsPlaybackMode);
     config.needAmplitude = NO;
     config.needAutoRecognize = NO;
     config.originalLanguage = sourceLanguage;
@@ -706,6 +775,9 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
     BOOL leftHasInput = self.leftAudioConfig.inputDeviceId.length > 0;
     BOOL rightHasInput = self.rightAudioConfig.inputDeviceId.length > 0;
     BOOL recording = self.recordState == ThingAudioRecordStateOngoing;
+    [self updateTTSPlaybackButtons];
+    self.leftTTSPlaybackModeButton.enabled = self.leftAudioConfig.ttsEnabled && !self.operationPending;
+    self.rightTTSPlaybackModeButton.enabled = self.rightAudioConfig.ttsEnabled && !self.operationPending;
     self.leftSpeakButton.enabled = leftHasInput && !self.operationPending && (!recording || self.activeSpeaker == 0);
     self.rightSpeakButton.enabled = rightHasInput && !self.operationPending && (!recording || self.activeSpeaker == 1);
 
@@ -818,6 +890,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
             self.translationLabels[key].text = result.translateText;
             self.translationLabels[key].textColor = speaker == 0 ? UIColor.systemBlueColor : UIColor.systemOrangeColor;
         }
+        [self updateTTSPlaybackButtons];
 
         BOOL recognitionCancelled = recognitionPhase && result.status == ThingAudioRecordProcessStatusCancel;
         BOOL recognizedSentenceEnded = recognitionPhase &&
@@ -860,6 +933,15 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
 }
 
 - (void)associateProcessResult:(ThingAudioRecordProcessResult *)result withBubbleKey:(NSString *)bubbleKey {
+    ThingAudioRecordAsrResult *sentence = self.sentenceByBubbleKey[bubbleKey];
+    if (!sentence) {
+        sentence = [[ThingAudioRecordAsrResult alloc] init];
+        self.sentenceByBubbleKey[bubbleKey] = sentence;
+    }
+    if (result.recordId.length > 0) sentence.recordId = result.recordId;
+    if (result.requestId.length > 0) sentence.requestId = result.requestId;
+    if (result.asrId > 0) sentence.asrId = result.asrId;
+    sentence.channel = result.channel;
     if (result.requestId.length > 0) {
         NSString *requestKey = [NSString stringWithFormat:@"%@-%d", result.requestId, result.channel];
         self.bubbleKeyByResultKey[requestKey] = bubbleKey;
@@ -896,7 +978,25 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
     translation.textColor = UIColor.secondaryLabelColor;
     translation.numberOfLines = 0;
 
-    UIStackView *texts = [[UIStackView alloc] initWithArrangedSubviews:@[header, asr, translation]];
+    UIButton *ttsButton = [UIButton buttonWithType:UIButtonTypeSystem];
+    [ttsButton setImage:[UIImage systemImageNamed:@"speaker.wave.2.fill"] forState:UIControlStateNormal];
+    ttsButton.tintColor = accent;
+    ttsButton.accessibilityLabel = @"播放此消息的 TTS";
+    ttsButton.accessibilityHint = @"需开启 TTS，并选择仅缓存或播放并缓存";
+    [ttsButton.widthAnchor constraintEqualToConstant:44].active = YES;
+    [ttsButton.heightAnchor constraintEqualToConstant:44].active = YES;
+    __weak typeof(self) weakSelf = self;
+    [ttsButton addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
+        [weakSelf playTTSForBubbleKey:key];
+    }] forControlEvents:UIControlEventTouchUpInside];
+    self.ttsButtons[key] = ttsButton;
+
+    UIStackView *translationRow = [[UIStackView alloc] initWithArrangedSubviews:@[translation, ttsButton]];
+    translationRow.axis = UILayoutConstraintAxisHorizontal;
+    translationRow.alignment = UIStackViewAlignmentTop;
+    translationRow.spacing = 6;
+
+    UIStackView *texts = [[UIStackView alloc] initWithArrangedSubviews:@[header, asr, translationRow]];
     texts.axis = UILayoutConstraintAxisVertical;
     texts.spacing = 6;
     texts.translatesAutoresizingMaskIntoConstraints = NO;
@@ -923,6 +1023,197 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *FaceToFaceLanguages(void
 
     self.asrLabels[key] = asr;
     self.translationLabels[key] = translation;
+}
+
+#pragma mark - Message TTS playback
+
+- (void)updateTTSPlaybackButtons {
+    BOOL enabled = !self.operationPending && self.recordState != ThingAudioRecordStateOngoing;
+    for (NSString *key in self.ttsButtons) {
+        UIButton *button = self.ttsButtons[key];
+        button.enabled = enabled;
+        BOOL playing = [self.playingBubbleKey isEqualToString:key];
+        [button setImage:[UIImage systemImageNamed:playing ? @"stop.fill" : @"speaker.wave.2.fill"] forState:UIControlStateNormal];
+        button.accessibilityLabel = playing ? @"停止此消息的 TTS" : @"播放此消息的 TTS";
+    }
+}
+
+- (void)playTTSForBubbleKey:(NSString *)key {
+    if (self.operationPending || self.recordState == ThingAudioRecordStateOngoing) return;
+    if ([self.playingBubbleKey isEqualToString:key]) {
+        [self stopTTSPlayback];
+        return;
+    }
+    [self stopTTSPlayback];
+    ThingAudioRecordAsrResult *identity = self.sentenceByBubbleKey[key];
+    if (identity.recordId.length == 0 || (identity.requestId.length == 0 && identity.asrId <= 0)) {
+        [self showFamilyMessageWithTitle:@"暂无 TTS 缓存" message:@"该消息尚未取得分句记录，请等待识别和翻译完成后重试。"];
+        return;
+    }
+    NSString *token = NSUUID.UUID.UUIDString;
+    self.ttsRequestToken = token;
+    __weak typeof(self) weakSelf = self;
+    [[NativeAudioService sharedInstance] fetchTTSSentencesWithRecordId:identity.recordId success:^(NSArray<ThingAudioRecordAsrResult *> *list) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self || ![self.ttsRequestToken isEqualToString:token]) return;
+        self.ttsRequestToken = nil;
+        if (self.operationPending || self.recordState == ThingAudioRecordStateOngoing) return;
+        for (ThingAudioRecordAsrResult *sentence in list) {
+            if (![sentence.recordId isEqualToString:identity.recordId] || sentence.channel != identity.channel) continue;
+            if (identity.asrId > 0 && sentence.asrId != identity.asrId) continue;
+            if (identity.requestId.length > 0 && ![sentence.requestId isEqualToString:identity.requestId]) continue;
+            [self playTTSAtPath:sentence.ttsPath bubbleKey:key];
+            return;
+        }
+        [self showFamilyMessageWithTitle:@"暂无 TTS 缓存"
+                                message:@"该消息尚未生成完整缓存，或录制时未开启缓存。请开启该侧 TTS 并选择“仅缓存”或“播放并缓存”；刚结束的句子可稍后重试。"];
+    } failure:^(NSError *error) {
+        __strong typeof(weakSelf) self = weakSelf;
+        if (!self || ![self.ttsRequestToken isEqualToString:token]) return;
+        self.ttsRequestToken = nil;
+        [self showFamilyMessageWithTitle:@"读取 TTS 失败" message:error.localizedDescription];
+    }];
+}
+
+- (BOOL)currentTTSOutputMatches:(ThingAudioTTSOutput)output {
+    for (AVAudioSessionPortDescription *port in AVAudioSession.sharedInstance.currentRoute.outputs) {
+        if (output == ThingAudioTTSOutput_SYSTEM_MIC && [port.portType isEqualToString:AVAudioSessionPortBuiltInSpeaker]) return YES;
+        if (output == ThingAudioTTSOutput_SYSTEM_BLUETOOTH &&
+            ([port.portType isEqualToString:AVAudioSessionPortBluetoothA2DP] ||
+             [port.portType isEqualToString:AVAudioSessionPortBluetoothHFP] ||
+             [port.portType isEqualToString:AVAudioSessionPortBluetoothLE])) return YES;
+    }
+    return NO;
+}
+
+- (BOOL)prepareTTSOutput:(ThingAudioTTSOutput)output error:(NSError **)error {
+    AVAudioSession *session = AVAudioSession.sharedInstance;
+    BOOL supportsPlayback = [session.category isEqualToString:AVAudioSessionCategoryPlayAndRecord] ||
+                            [session.category isEqualToString:AVAudioSessionCategoryPlayback];
+    // 手机麦克风 + 蓝牙 TTS 已由 SDK 配好路由时，切换类别可能触发 561017449。
+    if (supportsPlayback && [self currentTTSOutputMatches:output]) return YES;
+    self.previousAudioInput = session.preferredInput;
+    self.previousAudioOutputOverride = [session.currentRoute.outputs.firstObject.portType isEqualToString:AVAudioSessionPortBuiltInSpeaker]
+        ? AVAudioSessionPortOverrideSpeaker : AVAudioSessionPortOverrideNone;
+    self.ttsChangedAudioRoute = YES;
+    if (output == ThingAudioTTSOutput_SYSTEM_BLUETOOTH &&
+        [session.category isEqualToString:AVAudioSessionCategoryPlayAndRecord]) {
+        if (![session overrideOutputAudioPort:AVAudioSessionPortOverrideNone error:error]) return NO;
+        if ([self currentTTSOutputMatches:output]) return YES;
+    }
+    // 蓝牙回听使用 Playback，避免 SDK 在 PlayAndRecord 下重新施加上一侧的扬声器偏好。
+    NSString *category = output == ThingAudioTTSOutput_SYSTEM_MIC
+        ? AVAudioSessionCategoryPlayAndRecord : AVAudioSessionCategoryPlayback;
+    // 只在路由需要时修改类别；可播放的 SDK 会话不重复激活。
+    if (![category isEqualToString:session.category]) {
+        self.previousAudioCategory = session.category;
+        self.previousAudioMode = session.mode;
+        self.previousAudioOptions = session.categoryOptions;
+        if (![session setCategory:category mode:AVAudioSessionModeDefault options:0 error:error]) return NO;
+    }
+    if (!supportsPlayback) {
+        if (![session setActive:YES error:error]) return NO;
+        self.ttsActivatedAudioSession = YES;
+    }
+    if ([session.category isEqualToString:AVAudioSessionCategoryPlayAndRecord]) {
+        if (![session overrideOutputAudioPort:AVAudioSessionPortOverrideSpeaker error:error]) return NO;
+    }
+    if ([self currentTTSOutputMatches:output]) return YES;
+    if (error) {
+        *error = [NSError errorWithDomain:@"FaceToFaceTTSPlayback" code:1 userInfo:@{
+            NSLocalizedDescriptionKey: output == ThingAudioTTSOutput_SYSTEM_BLUETOOTH
+                ? @"未能切换到蓝牙输出，请确认耳机已连接并在系统中选为音频输出后重试。"
+                : @"未能切换到手机扬声器，请稍后重试。"
+        }];
+    }
+    return NO;
+}
+
+- (void)playTTSAtPath:(NSString *)path bubbleKey:(NSString *)key {
+    NSNumber *speaker = self.speakerByKey[key];
+    ThingAudioTTSOutput output = [self audioConfigForSpeaker:speaker.integerValue].ttsOutput;
+    if (!speaker || output == ThingAudioTTSOutput_DEFAULT) {
+        [self showFamilyMessageWithTitle:@"请选择 TTS 输出" message:@"请先设置该消息所属侧的 TTS 输出设备。"];
+        return;
+    }
+    if (output == ThingAudioTTSOutput_DEVICE) {
+        [self showFamilyMessageWithTitle:@"暂不支持设备直传回听" message:@"当前 SDK 未提供历史 TTS 文件的设备直传接口。请将该侧输出设为系统蓝牙或手机扬声器后回听。"];
+        return;
+    }
+    if (![NSFileManager.defaultManager isReadableFileAtPath:path]) {
+        [self showFamilyMessageWithTitle:@"缓存文件不可用" message:@"该消息的 TTS 文件已被清理或无法读取。"];
+        return;
+    }
+    NSError *error = nil;
+    AVAudioPlayer *player = [[AVAudioPlayer alloc] initWithContentsOfURL:[NSURL fileURLWithPath:path] error:&error];
+    if (!player) {
+        [self showFamilyMessageWithTitle:@"TTS 加载失败" message:error.localizedDescription];
+        return;
+    }
+    if (![self prepareTTSOutput:output error:&error]) {
+        [self stopTTSPlayback];
+        [self showFamilyMessageWithTitle:@"无法播放 TTS" message:error.localizedDescription];
+        return;
+    }
+    player.delegate = self;
+    self.ttsPlayer = player;
+    self.playingBubbleKey = key;
+    self.playingTTSOutput = output;
+    if (![player play]) {
+        [self stopTTSPlayback];
+        [self showFamilyMessageWithTitle:@"TTS 播放失败" message:@"无法播放该消息的缓存音频，请稍后重试。"];
+        return;
+    }
+    [self updateTTSPlaybackButtons];
+}
+
+- (void)stopTTSPlayback {
+    self.ttsRequestToken = nil;
+    [self.ttsPlayer stop];
+    self.ttsPlayer = nil;
+    self.playingBubbleKey = nil;
+    AVAudioSession *session = AVAudioSession.sharedInstance;
+    if (self.previousAudioCategory) {
+        if (self.ttsActivatedAudioSession) {
+            [session setActive:NO withOptions:AVAudioSessionSetActiveOptionNotifyOthersOnDeactivation error:nil];
+        }
+        [session setCategory:self.previousAudioCategory mode:self.previousAudioMode options:self.previousAudioOptions error:nil];
+        self.previousAudioCategory = nil;
+        self.previousAudioMode = nil;
+    }
+    if (self.ttsChangedAudioRoute && [session.category isEqualToString:AVAudioSessionCategoryPlayAndRecord]) {
+        [session setPreferredInput:self.previousAudioInput error:nil];
+        [session overrideOutputAudioPort:self.previousAudioOutputOverride error:nil];
+    }
+    self.ttsActivatedAudioSession = NO;
+    self.ttsChangedAudioRoute = NO;
+    self.previousAudioInput = nil;
+    [self updateTTSPlaybackButtons];
+}
+
+- (void)ttsAudioRouteChanged:(NSNotification *)notification {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!self.ttsPlayer.isPlaying || [self currentTTSOutputMatches:self.playingTTSOutput]) return;
+        [self stopTTSPlayback];
+        [self showFamilyMessageWithTitle:@"TTS 播放已停止" message:@"音频输出已变化，请确认该侧输出设备后重新播放。"];
+    });
+}
+
+- (void)audioPlayerDidFinishPlaying:(AVAudioPlayer *)player successfully:(BOOL)flag {
+    if (player == self.ttsPlayer) [self stopTTSPlayback];
+}
+
+- (void)audioPlayerDecodeErrorDidOccur:(AVAudioPlayer *)player error:(NSError *)error {
+    if (player != self.ttsPlayer) return;
+    [self stopTTSPlayback];
+    [self showFamilyMessageWithTitle:@"TTS 解码失败" message:error.localizedDescription];
+}
+
+- (void)audioSessionInterrupted:(NSNotification *)notification {
+    if ([notification.userInfo[AVAudioSessionInterruptionTypeKey] unsignedIntegerValue] != AVAudioSessionInterruptionTypeBegan) return;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [self stopTTSPlayback];
+    });
 }
 
 - (void)scrollConversationToBottom {

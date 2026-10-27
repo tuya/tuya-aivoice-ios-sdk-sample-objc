@@ -103,6 +103,11 @@ typedef void(^NativeAudioProcessProgress)(double progress, int status);
                                       success:(nullable void(^)(NSArray<ThingAudioRecordAsrResult *> *list))success
                                       failure:(nullable NativeAudioFailure)failure;
 
+/// 查询带 TTS 缓存路径的历史分句，保留 requestId/asrId；recordId 为 nil 时查询全部。
+- (void)fetchTTSSentencesWithRecordId:(nullable NSString *)recordId
+                             success:(nullable void(^)(NSArray<ThingAudioRecordAsrResult *> *list))success
+                             failure:(nullable NativeAudioFailure)failure;
+
 #pragma mark - Offline processing (transcribe / summarize / translate)
 
 /// 使用完整原生参数发起离线转写、总结或翻译任务。

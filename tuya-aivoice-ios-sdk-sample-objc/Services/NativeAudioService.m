@@ -179,6 +179,25 @@ static void native_main(void(^block)(void)) {
     }];
 }
 
+- (void)fetchTTSSentencesWithRecordId:(nullable NSString *)recordId
+                             success:(nullable void(^)(NSArray<ThingAudioRecordAsrResult *> *list))success
+                             failure:(nullable NativeAudioFailure)failure {
+    ThingAudioRecordAsrsParams *params = [[ThingAudioRecordAsrsParams alloc] init];
+    // 不传 fileId，覆盖尚未关联正式文件的对话分句。
+    params.recordId = recordId;
+    [self.manager getRecordTransferRealTimeResult:params success:^(NSArray<ThingAudioRecordAsrResult *> *list) {
+        NSMutableArray<ThingAudioRecordAsrResult *> *sentences = [NSMutableArray array];
+        for (ThingAudioRecordAsrResult *sentence in list) {
+            if (sentence.ttsPath.length > 0) {
+                [sentences addObject:sentence];
+            }
+        }
+        native_main(^{ if (success) success([sentences copy]); });
+    } failure:^(NSError *error) {
+        native_main(^{ if (failure) failure(error); });
+    }];
+}
+
 #pragma mark - Offline processing
 
 - (void)processRecordWithParams:(ThingAudioRecordUploadFileParams *)params
