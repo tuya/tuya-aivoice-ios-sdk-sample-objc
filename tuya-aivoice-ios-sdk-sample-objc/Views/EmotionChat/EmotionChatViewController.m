@@ -18,7 +18,7 @@
 @implementation EmotionChatMessage
 @end
 
-@interface EmotionChatViewController () <UITextViewDelegate>
+@interface EmotionChatViewController () <UITextViewDelegate, UIGestureRecognizerDelegate>
 @property (nonatomic, copy) NSArray<NSDictionary<NSString *, NSString *> *> *roles;
 @property (nonatomic, assign) NSUInteger roleIndex;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSMutableArray<EmotionChatMessage *> *> *conversations;
@@ -93,6 +93,10 @@
     [self buildPage];
     [self buildRecordingOverlay];
     [self renderConversation];
+    UITapGestureRecognizer *backgroundTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissKeyboard)];
+    backgroundTap.cancelsTouchesInView = NO;
+    backgroundTap.delegate = self;
+    [self.view addGestureRecognizer:backgroundTap];
     NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
     [center addObserver:self selector:@selector(keyboardChanged:) name:UIKeyboardWillChangeFrameNotification object:nil];
     [center addObserver:self selector:@selector(applicationInactive:) name:UIApplicationWillResignActiveNotification object:nil];
@@ -724,6 +728,18 @@
             [self stopPlayback];
         });
     }
+}
+
+- (void)dismissKeyboard {
+    [self.view endEditing:YES];
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
+    if (self.voiceInput.isRecording || self.permissionPending) { return NO; }
+    for (UIView *view = touch.view; view; view = view.superview) {
+        if ([view isKindOfClass:UIControl.class] || [view isKindOfClass:UITextView.class]) { return NO; }
+    }
+    return self.textInput.isFirstResponder || self.reviewText.isFirstResponder;
 }
 
 - (void)keyboardChanged:(NSNotification *)notification {

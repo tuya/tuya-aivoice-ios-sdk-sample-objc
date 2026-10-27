@@ -10,6 +10,14 @@
 - (void)sendPendingAudio;
 - (void)recordGestureChanged:(UILongPressGestureRecognizer *)gesture;
 - (void)keyboardChanged:(NSNotification *)notification;
+- (void)dismissKeyboard;
+@end
+
+@interface EmotionTestTouch : UITouch
+@property (nonatomic, strong) UIView *touchedView;
+@end
+@implementation EmotionTestTouch
+- (UIView *)view { return self.touchedView; }
 @end
 
 @interface EmotionTestEndedGesture : UILongPressGestureRecognizer
@@ -72,6 +80,74 @@
     input.text = @"  \n ";
     [self.controller sendText];
     XCTAssertEqual(self.controller.currentMessages.count, 0);
+}
+
+- (UITapGestureRecognizer *)backgroundTapGesture {
+    for (UIGestureRecognizer *gesture in self.controller.view.gestureRecognizers) {
+        if ([gesture isKindOfClass:UITapGestureRecognizer.class]) { return (UITapGestureRecognizer *)gesture; }
+    }
+    return nil;
+}
+
+- (UIWindow *)showControllerWindow {
+    UIWindowScene *scene = (UIWindowScene *)UIApplication.sharedApplication.connectedScenes.anyObject;
+    UIWindow *window = [[UIWindow alloc] initWithWindowScene:scene];
+    window.rootViewController = self.controller;
+    [window makeKeyAndVisible];
+    return window;
+}
+
+- (void)testBackgroundTapDismissesTextKeyboardAndPreservesDraft {
+    UITapGestureRecognizer *tap = [self backgroundTapGesture];
+    XCTAssertNotNil(tap, @"页面需要监听空白区域的点击以收起键盘");
+    if (!tap) { return; }
+    UIWindow *window = [self showControllerWindow];
+    UITextView *input = [self.controller valueForKey:@"textInput"];
+    input.hidden = NO;
+    input.text = @"尚未发送的话";
+    XCTAssertTrue([input becomeFirstResponder]);
+    EmotionTestTouch *touch = [EmotionTestTouch new];
+    touch.touchedView = [self.controller valueForKey:@"scrollView"];
+    XCTAssertTrue([tap.delegate gestureRecognizer:tap shouldReceiveTouch:touch]);
+    [self.controller dismissKeyboard];
+    XCTAssertFalse(input.isFirstResponder);
+    XCTAssertEqualObjects(input.text, @"尚未发送的话");
+    XCTAssertFalse(tap.cancelsTouchesInView);
+    window.hidden = YES;
+}
+
+- (void)testBackgroundTapDismissesVoiceReviewKeyboardAndPreservesRecording {
+    UITapGestureRecognizer *tap = [self backgroundTapGesture];
+    XCTAssertNotNil(tap, @"语音校对也需要支持点击空白收起键盘");
+    if (!tap) { return; }
+    UIWindow *window = [self showControllerWindow];
+    [self.controller finishRecordingCancelled:NO];
+    void (^completion)(NSString *, NSError *) = self.voiceInput.completions.lastObject;
+    completion(@"需要校对的文字", nil);
+    UITextView *review = [self.controller valueForKey:@"reviewText"];
+    XCTAssertTrue([review becomeFirstResponder]);
+    [self.controller dismissKeyboard];
+    XCTAssertFalse(review.isFirstResponder);
+    XCTAssertEqualObjects(review.text, @"需要校对的文字");
+    XCTAssertEqualObjects([self.controller valueForKey:@"pendingURL"], self.voiceInput.testURL);
+    window.hidden = YES;
+}
+
+- (void)testBackgroundTapDoesNotInterceptEditorsOrButtons {
+    UITapGestureRecognizer *tap = [self backgroundTapGesture];
+    XCTAssertNotNil(tap);
+    if (!tap) { return; }
+    XCTAssertTrue([tap.delegate respondsToSelector:@selector(gestureRecognizer:shouldReceiveTouch:)]);
+    EmotionTestTouch *touch = [EmotionTestTouch new];
+    touch.touchedView = [self.controller valueForKey:@"textInput"];
+    XCTAssertFalse([tap.delegate gestureRecognizer:tap shouldReceiveTouch:touch]);
+    touch.touchedView = [self.controller valueForKey:@"reviewText"];
+    XCTAssertFalse([tap.delegate gestureRecognizer:tap shouldReceiveTouch:touch]);
+    UIButton *send = [self.controller valueForKey:@"sendButton"];
+    touch.touchedView = send.imageView;
+    XCTAssertFalse([tap.delegate gestureRecognizer:tap shouldReceiveTouch:touch]);
+    touch.touchedView = [self.controller valueForKey:@"recordButton"];
+    XCTAssertFalse([tap.delegate gestureRecognizer:tap shouldReceiveTouch:touch]);
 }
 
 - (void)testMessagesRemainIsolatedWhenSwitchingRoles {

@@ -382,6 +382,171 @@ ThingAudioDetectManagerNative *manager = [ThingAudioDetectManagerNative sharedIn
 @end
 ```
 
+### 1.9 对话翻译（面对面翻译）
+
+对话翻译使用左、右两个发言通道。每侧分别保存输入源、语言、TTS 开关和 TTS 输出配置；用户点击某侧发言时，使用该侧配置调用 `startAudioRecordingWithDeviceId:config:success:failure:`。
+
+```mermaid
+flowchart LR
+    idle["未开始 / 已暂停"] --> choose["点击左侧或右侧"]
+    choose --> config["组装当前侧 Config"]
+    config --> start["startAudioRecording"]
+    start --> result["接收 ASR 和译文"]
+    result --> pause["点击当前侧 pause"]
+    pause --> idle
+    idle -->|"退出页面"| stop["stopRecordTransfer"]
+```
+
+#### 1.9.1 左右侧默认配置
+
+| 发言侧 | `f2fChannel` | 输入 | 语言方向 | TTS | TTS 输出 |
+| --- | --- | --- | --- | --- | --- |
+| 左侧 | `0` | `PHONE` + `ThingSystemMic16KMono` | `zh` → `en` | 开启 | `ThingAudioTTSOutput_SYSTEM_BLUETOOTH` |
+| 右侧 | `1` | `PHONE` + `ThingSystemBlueTooth16KMono` | `en` → `zh` | 关闭 | 不配置 `ttsConfig` / `ttsConfigList` |
+
+以上仅为 Demo 默认值。左、右两侧都可以在下一次发言前独立更改输入源、语言、TTS 开关和 TTS 输出。
+
+| 场景 | `deviceId` | `audioSource` / `audioSourceList` |
+| --- | --- | --- |
+| 手机麦克风 | `@"PHONE"` | `ThingSystemMic16KMono` |
+| 系统蓝牙麦克风 | `@"PHONE"` | `ThingSystemBlueTooth16KMono` |
+| 设备输入 | 真实设备 ID | 按设备能力选择，例如 `ThingEarPhonePro16KMono` |
+
+`audioSourceList` 与 `audioSource` 保持一致，当前发言侧传入单个音源：
+
+```objc
+config.audioSource = sideConfig.audioSource;
+config.audioSourceList = @[@(sideConfig.audioSource)];
+```
+
+#### 1.9.2 组装当前发言侧配置
+
+```objc
+- (ThingAudioRecordConfig *)configForSpeaker:(NSInteger)speaker {
+    FaceToFaceSideAudioConfig *sideConfig = [self audioConfigForSpeaker:speaker];
+    NSString *sourceLanguage = speaker == 0 ? self.leftLanguage : self.rightLanguage;
+    NSString *targetLanguage = speaker == 0 ? self.rightLanguage : self.leftLanguage;
+
+    ThingAudioRecordConfig *config = [[ThingAudioRecordConfig alloc] init];
+    config.saveDataWhenError = YES;
+    config.recordType = ThingAudioRecordTypeFaceToFace;
+    config.businessType = ThingAudioBusinessTypeTranslate;
+    config.controlTimeout = 5;
+    config.dataTimeout = 10;
+    config.transferType = ThingAudioRecordTransferTypeRealTime;
+
+    config.audioSource = sideConfig.audioSource;
+    config.audioSourceList = @[@(sideConfig.audioSource)];
+
+    config.needAsr = YES;
+    config.needTranslate = YES;
+    config.needTTS = sideConfig.ttsEnabled;
+    config.needAmplitude = NO;
+    config.needAutoRecognize = NO;
+    config.originalLanguage = sourceLanguage;
+    config.targetLanguage = targetLanguage;
+    config.f2fChannel = (int)speaker;
+    config.startLivingStatus = 0;
+
+    // 只有开启 TTS 时才配置 TTS 输出。
+    if (config.needTTS) {
+        ThingAudioTTSConfig *ttsConfig =
+            [[ThingAudioTTSConfig alloc] initTtsConfigWith:sideConfig.ttsOutput
+                                                     encode:sideConfig.ttsEncode
+                                                    channel:ThingAudioTTSOutputChannel_DEFAULT
+                                                   deviceId:sideConfig.ttsDeviceId ?: @""];
+        config.ttsConfig = ttsConfig;
+        config.ttsConfigList = @[ttsConfig];
+    }
+
+    config.audio3AConfig =
+        [ThingAudio3AConfig optimalConfigForSupportTTS:config.needTTS];
+    return config;
+}
+```
+
+TTS 输出可按当前发言侧动态选择：
+
+| TTS 输出 | `output` | `encode` | `deviceId` |
+| --- | --- | --- | --- |
+| 手机扬声器 | `ThingAudioTTSOutput_SYSTEM_MIC` | `ThingAudioTTSEncode_DEFAULT` | `@""` |
+| 系统蓝牙 | `ThingAudioTTSOutput_SYSTEM_BLUETOOTH` | `ThingAudioTTSEncode_DEFAULT` | `@""` |
+| 设备直出 | `ThingAudioTTSOutput_DEVICE` | 按设备能力选择 `OPUS_SILK` 或 `OPUS_CELT` | 真实设备 ID |
+
+`needTTS = NO` 时不要创建 `ThingAudioTTSConfig`，`ttsConfig` 和 `ttsConfigList` 保持为 `nil`。`needTTS` 只控制当前侧是否播放 TTS。SDK 内部按 `f2fChannel` 维护左右两路独立 Token，并在同一对话内复用；调用方不需要创建或切换 Token，也不要设置 `forceCreateToken`。
+
+#### 1.9.3 开始、暂停与切换发言方
+
+```objc
+- (void)startSpeaker:(NSInteger)speaker {
+    FaceToFaceSideAudioConfig *sideConfig = [self audioConfigForSpeaker:speaker];
+    ThingAudioRecordConfig *config = [self configForSpeaker:speaker];
+
+    [self bindListenerToDeviceId:sideConfig.inputDeviceId];
+    [self.manager startAudioRecordingWithDeviceId:sideConfig.inputDeviceId
+                                           config:config
+                                          success:^(ThingAudioRecordObject *task) {
+        self.recordState = ThingAudioRecordStateOngoing;
+        self.activeSpeaker = speaker;
+    } failure:^(NSError *error) {
+        // 展示 error.localizedDescription。
+    }];
+}
+
+- (void)pauseCurrentSpeaker {
+    [self.manager pauseRecordTransferWithDeviceId:self.activeDeviceId
+                                          success:^{
+        self.recordState = ThingAudioRecordStatePaused;
+        self.activeSpeaker = -1;
+    } failure:^(NSError *error) {
+        // 暂停失败时保持当前状态，不要继续 start。
+    }];
+}
+```
+
+调用流程固定为：
+
+1. 未开始或已暂停时，点击任一侧，使用该侧配置调用 `startAudioRecording...`。
+2. 录音中只允许点击当前发言侧，点击后调用 `pauseRecordTransfer...`。
+3. `pause` 成功后再选择下一位发言方，并再次调用 `startAudioRecording...`。
+4. 不调用 `resumeRecordTransfer...`，也不在 `pause` 成功回调中自动开始下一侧。
+5. 左右切换时更新 `f2fChannel`、`audioSource`、`originalLanguage`、`targetLanguage` 和当前侧 TTS 配置。
+6. 只有退出对话页面时才调用 `stopRecordTransfer...`。
+
+#### 1.9.4 展示 ASR 和译文
+
+```objc
+- (void)record:(NSString *)deviceId
+onProcessResult:(ThingAudioRecordProcessResult *)result {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSInteger speaker = result.channel; // 0 左侧，1 右侧
+        [self updateConversationForSpeaker:speaker
+                                      text:result.text
+                             translatedText:result.translateText
+                                    status:result.status
+                                 requestId:result.requestId
+                                      asrId:result.asrId];
+    });
+}
+```
+
+每个发言侧分别维护一个“正在识别”的句子。新的临时 `requestId` 或 `asrId` 到达时，如果该侧当前句子还没有识别出文本，或尚未收到 `status == ThingAudioRecordProcessStatusEnd`，继续更新当前句子，不要新增气泡。当前句子已有识别文本且收到 End 后，下一条结果才创建新句子。
+
+#### 1.9.5 退出页面
+
+```objc
+- (void)endConversation {
+    for (NSString *deviceId in self.sessionDeviceIds) {
+        [self.manager stopRecordTransferWithDeviceId:deviceId
+                                             success:nil
+                                             failure:nil];
+    }
+    [self unbindListener];
+}
+```
+
+`stopRecordTransfer...` 只用于退出页面时结束整个对话，不用于单轮发言结束或左右切换。
+
 ---
 
 
