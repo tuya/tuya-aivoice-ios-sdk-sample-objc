@@ -63,6 +63,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
 @property (nonatomic, copy) NSString *selectedOriginalLanguage;
 /// 当前选中的目标语言代码（targetLanguage），默认 en。
 @property (nonatomic, copy) NSString *selectedTargetLanguage;
+@property (nonatomic, assign) ThingAudioTtsPlaybackMode selectedTTSPlaybackMode;
 
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIStackView *contentStack;
@@ -72,6 +73,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
 @property (nonatomic, strong) UISwitch *asrSwitch;
 @property (nonatomic, strong) UISwitch *nlgSwitch;
 @property (nonatomic, strong) UISwitch *ttsSwitch;
+@property (nonatomic, strong) UIButton *ttsPlaybackModeButton;
 @property (nonatomic, strong) UIButton *originalLanguageButton;
 @property (nonatomic, strong) UIButton *targetLanguageButton;
 @property (nonatomic, strong) UILabel *stateLabel;
@@ -117,6 +119,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
     self.selectedAudioSource = ThingSystemMic16KMono;
     self.selectedOriginalLanguage = @"zh";
     self.selectedTargetLanguage = @"en";
+    self.selectedTTSPlaybackMode = ThingAudioTtsPlaybackModeImmediate;
     self.recordState = ThingAudioRecordStateUnknown;
     self.amplitudes = [NSMutableArray array];
     self.waveformBars = [NSMutableArray array];
@@ -207,6 +210,10 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
     UIView *asrRow = [self toggleRowWithTitle:@"ASR 识别" switchControl:self.asrSwitch];
     UIView *nlgRow = [self toggleRowWithTitle:@"NLG 翻译" switchControl:self.nlgSwitch];
     UIView *ttsRow = [self toggleRowWithTitle:@"TTS 播报" switchControl:self.ttsSwitch];
+    self.ttsPlaybackModeButton = [self actionButtonWithTitle:[self displayNameForTTSPlaybackMode:self.selectedTTSPlaybackMode]
+                                                    action:@selector(ttsPlaybackModeButtonTapped:)];
+    self.ttsPlaybackModeButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
+    UIView *ttsPlaybackModeRow = [self labeledRowWithTitle:@"播放模式" control:self.ttsPlaybackModeButton];
 
     self.originalLanguageButton = [self actionButtonWithTitle:@"中文"
                                                       action:@selector(originalLanguageButtonTapped:)];
@@ -226,6 +233,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
     [configStack addArrangedSubview:asrRow];
     [configStack addArrangedSubview:nlgRow];
     [configStack addArrangedSubview:ttsRow];
+    [configStack addArrangedSubview:ttsPlaybackModeRow];
     [configStack addArrangedSubview:[self separatorLine]];
     [configStack addArrangedSubview:[self fieldTitleLabel:@"语言设置"]];
     [configStack addArrangedSubview:originalLanguageRow];
@@ -534,6 +542,39 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
 - (void)capabilitySwitchChanged:(UISwitch *)sender {
     NSString *name = sender == self.asrSwitch ? @"ASR" : (sender == self.nlgSwitch ? @"NLG" : @"TTS");
     [self appendLog:[NSString stringWithFormat:@"%@ 切换为 %@", name, sender.isOn ? @"开" : @"关"]];
+    [self updateControls];
+}
+
+- (NSString *)displayNameForTTSPlaybackMode:(ThingAudioTtsPlaybackMode)mode {
+    switch (mode) {
+        case ThingAudioTtsPlaybackModeImmediate: return @"实时播放";
+        case ThingAudioTtsPlaybackModeDeferred: return @"仅缓存";
+        case ThingAudioTtsPlaybackModePlayAndCache: return @"播放并缓存";
+    }
+    return @"未知模式";
+}
+
+- (void)ttsPlaybackModeButtonTapped:(UIButton *)sender {
+    if (self.operationPending || [self isRecordingActive] || !self.ttsSwitch.isOn) return;
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"选择 TTS 播放模式"
+                                                                 message:@"实时播放不缓存；仅缓存不播放；播放并缓存同时执行。缓存保存完整句 MP3。"
+                                                          preferredStyle:UIAlertControllerStyleActionSheet];
+    __weak typeof(self) weakSelf = self;
+    for (NSNumber *value in @[@(ThingAudioTtsPlaybackModeImmediate), @(ThingAudioTtsPlaybackModeDeferred), @(ThingAudioTtsPlaybackModePlayAndCache)]) {
+        ThingAudioTtsPlaybackMode mode = value.integerValue;
+        NSString *name = [self displayNameForTTSPlaybackMode:mode];
+        NSString *title = mode == self.selectedTTSPlaybackMode ? [name stringByAppendingString:@"  ✓"] : name;
+        [sheet addAction:[UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+            __strong typeof(weakSelf) self = weakSelf;
+            if (!self) return;
+            self.selectedTTSPlaybackMode = mode;
+            [self.ttsPlaybackModeButton setTitle:name forState:UIControlStateNormal];
+            [self appendLog:[NSString stringWithFormat:@"TTS 播放模式切换为 %@（%ld）", name, (long)mode]];
+        }]];
+    }
+    [sheet addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
+    [self configurePopoverForAlert:sheet sourceView:sender];
+    [self presentViewController:sheet animated:YES completion:nil];
 }
 
 - (void)loadDevices {
@@ -812,6 +853,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
     config.needAmplitude = YES;
     config.needTranslate = self.nlgSwitch.isOn;
     config.needTTS = self.ttsSwitch.isOn;
+    config.ttsPlaybackMode = @(self.selectedTTSPlaybackMode);
     // 其余参数默认值。源/目标语言由「语言设置」选择器决定。
     config.needAutoRecognize = NO;
     config.originalLanguage = self.selectedOriginalLanguage;
@@ -901,6 +943,8 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
 }
 
 - (void)applyTask:(ThingAudioRecordObject *)task {
+    self.selectedTTSPlaybackMode = task.ttsPlaybackMode;
+    [self.ttsPlaybackModeButton setTitle:[self displayNameForTTSPlaybackMode:self.selectedTTSPlaybackMode] forState:UIControlStateNormal];
     self.recordState = task.state;
     if (self.recordState != ThingAudioRecordStateOngoing && self.recordState != ThingAudioRecordStatePaused) {
         self.recordState = ThingAudioRecordStateOngoing;
@@ -954,6 +998,7 @@ static NSArray<NSDictionary<NSString *, NSString *> *> *kNativeSDKLanguages(void
     self.asrSwitch.enabled = !active && !self.operationPending;
     self.nlgSwitch.enabled = !active && !self.operationPending;
     self.ttsSwitch.enabled = !active && !self.operationPending;
+    self.ttsPlaybackModeButton.enabled = self.ttsSwitch.isOn && !active && !self.operationPending;
     self.originalLanguageButton.enabled = !active && !self.operationPending;
     self.targetLanguageButton.enabled = !active && !self.operationPending;
     self.startButton.enabled = hasDevice && !active && !self.operationPending;
