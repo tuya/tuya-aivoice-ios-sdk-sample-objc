@@ -9,6 +9,7 @@
 #import "AppKey.h"
 #import <ThingSmartBizCore/ThingSmartBizCore.h>
 #import <ThingSmartBaseKit/ThingSmartBaseKit.h>
+#import <ThingSmartBusinessExtensionKit/ThingSmartBusinessExtensionKit.h>
 #import <ThingSmartMiniAppBizBundle/ThingSmartMiniAppBizBundle.h>
 #import <ThingModuleManager/ThingModuleManager.h>
 #import <ThingSmartLogger/ThingLogSDK.h>
@@ -55,6 +56,9 @@
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
     // Override point for customization after application launch.
     [[ThingSmartSDK sharedInstance] startWithAppKey:APP_KEY secretKey:APP_SECRET_KEY];
+    // AI Stream and other Business Extension capabilities require this setup
+    // after the base SDK has been started.
+    [ThingSmartBusinessExtensionConfig setupConfig];
 #if DEBUG
     [[ThingSmartSDK sharedInstance] setDebugMode:YES];
 #endif

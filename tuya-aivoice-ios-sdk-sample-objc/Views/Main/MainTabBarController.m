@@ -44,6 +44,17 @@
     }
 
     EmotionChatViewController *emotionVC = [[EmotionChatViewController alloc] init];
+#if DEBUG
+    // 情绪树洞专用测试设备。临时使用已知小程序 ID 排查 token 参数错误。
+    EmotionAgentConfiguration *emotionConfiguration = [EmotionAgentConfiguration new];
+    emotionConfiguration.deviceId = @"vdevo179327539385299";
+    emotionConfiguration.productId = @"bjgihalp";
+    emotionConfiguration.ownerId = @"232689934";
+    emotionConfiguration.useDeviceIdentity = YES;
+    emotionConfiguration.solutionCode = @"pj_1d5cbc108341d000";
+    emotionConfiguration.miniProgramId = @"ty4vobytj7zrp9norh";
+    emotionVC.agentConfiguration = emotionConfiguration;
+#endif
     UINavigationController *emotionNav = [[UINavigationController alloc] initWithRootViewController:emotionVC];
     emotionNav.tabBarItem = [[UITabBarItem alloc] initWithTitle:@"树洞" image:[UIImage systemImageNamed:@"bubble.left.and.bubble.right"] tag:3];
     emotionNav.tabBarItem.selectedImage = [UIImage systemImageNamed:@"bubble.left.and.bubble.right.fill"];

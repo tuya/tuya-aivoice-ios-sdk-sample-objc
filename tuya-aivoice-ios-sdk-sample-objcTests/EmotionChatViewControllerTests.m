@@ -11,6 +11,7 @@
 - (void)recordGestureChanged:(UILongPressGestureRecognizer *)gesture;
 - (void)keyboardChanged:(NSNotification *)notification;
 - (void)dismissKeyboard;
+- (void)applyAgentConfigurationReport:(NSDictionary *)report;
 @end
 
 @interface EmotionTestTouch : UITouch
@@ -161,6 +162,50 @@
     [self.controller setValue:@0 forKey:@"roleIndex"];
     XCTAssertEqual(self.controller.currentMessages.count, 1);
     XCTAssertEqualObjects([self.controller.currentMessages.firstObject valueForKey:@"text"], @"只告诉知秋的话");
+}
+
+- (void)testAgentReportWritesCloudRolesAndEmotion {
+    [self.controller applyAgentConfigurationReport:@{
+        @"initializedRole": @{
+            @"success": @YES,
+            @"response": @{
+                @"roleId": @"cloud-role-2",
+                @"roleName": @"听澜",
+                @"roleIntroduce": @"安静地陪你聊聊。",
+                @"useLangName": @"Chinese",
+                @"useTimbreName": @"Warm",
+            },
+        },
+        @"roleTemplates": @{
+            @"success": @YES,
+            @"response": @[
+                @{@"roleId": @"cloud-role-1", @"roleName": @"知秋", @"roleOverview": @"温柔倾听。"},
+                @{@"roleId": @"cloud-role-2", @"roleName": @"听澜", @"roleOverview": @"安静陪伴。", @"defaultFlag": @1},
+            ],
+        },
+        @"currentEmotion": @{
+            @"success": @YES,
+            @"response": @{@"emotionOpen": @YES, @"text": @"😀"},
+        },
+        @"project": @{@"success": @NO, @"status": @"unsupported"},
+    }];
+    NSArray *roles = [self.controller valueForKey:@"roles"];
+    XCTAssertEqual(roles.count, 2);
+    XCTAssertEqual([[self.controller valueForKey:@"roleIndex"] unsignedIntegerValue], 1);
+    XCTAssertEqualObjects(roles[1][@"name"], @"听澜");
+    XCTAssertEqualObjects([[self.controller valueForKey:@"emotionLabel"] text], @"当前心情 · 😀");
+}
+
+- (void)testAgentReportNamesFailedInterface {
+    [self.controller applyAgentConfigurationReport:@{
+        @"initializedRole": @{@"success": @YES, @"response": @{}},
+        @"roleTemplates": @{@"success": @NO, @"apiName": @"role-template.list", @"code": @403, @"message": @"No permission"},
+        @"currentEmotion": @{@"success": @YES, @"response": @{@"emotionOpen": @NO}},
+        @"project": @{@"success": @NO, @"status": @"unsupported"},
+    }];
+    UILabel *feedback = [self.controller valueForKey:@"feedbackLabel"];
+    XCTAssertTrue([feedback.text containsString:@"角色模板"]);
+    XCTAssertTrue([feedback.text containsString:@"403"]);
 }
 
 - (void)testShortOrCancelledRecordingDoesNotCreateDraft {

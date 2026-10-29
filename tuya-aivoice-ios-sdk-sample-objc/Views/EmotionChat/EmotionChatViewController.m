@@ -1,11 +1,17 @@
 #import "EmotionChatViewController.h"
 #import "EmotionVoiceInput.h"
+#import "EmotionAgentDiagnostics.h"
+#import "EmotionAIStreamService.h"
+#import <ThingSmartDeviceKit/ThingSmartDeviceKit.h>
 #import <AVFoundation/AVFoundation.h>
 
 @implementation EmotionAgentConfiguration
 - (instancetype)init {
     self = [super init];
-    if (self) { _roleIds = @{}; }
+    if (self) {
+        _roleIds = @{};
+        _useDeviceIdentity = NO;
+    }
     return self;
 }
 @end
@@ -14,17 +20,21 @@
 @property (nonatomic, copy) NSString *text;
 @property (nonatomic, strong, nullable) NSURL *audioURL;
 @property (nonatomic, assign) NSTimeInterval duration;
+@property (nonatomic, assign) BOOL assistant;
+@property (nonatomic, assign) BOOL pending;
+@property (nonatomic, copy, nullable) NSString *status;
 @end
 @implementation EmotionChatMessage
 @end
 
 @interface EmotionChatViewController () <UITextViewDelegate, UIGestureRecognizerDelegate>
-@property (nonatomic, copy) NSArray<NSDictionary<NSString *, NSString *> *> *roles;
+@property (nonatomic, copy) NSArray<NSDictionary *> *roles;
 @property (nonatomic, assign) NSUInteger roleIndex;
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSMutableArray<EmotionChatMessage *> *> *conversations;
 @property (nonatomic, strong) EmotionVoiceInput *voiceInput;
 @property (nonatomic, strong) UIButton *roleButton;
 @property (nonatomic, strong) UILabel *roleDescription;
+@property (nonatomic, strong) UILabel *emotionLabel;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIStackView *messagesStack;
 @property (nonatomic, strong) UIStackView *composer;
@@ -61,7 +71,36 @@
 @property (nonatomic, assign) BOOL recognizing;
 @property (nonatomic, strong, nullable) NSURL *playingURL;
 @property (nonatomic, weak, nullable) UIButton *playingButton;
+@property (nonatomic, strong) EmotionAgentDiagnostics *agentDiagnostics;
+@property (nonatomic, assign) BOOL didQueryAgentConfiguration;
+@property (nonatomic, strong, nullable) EmotionAIStreamService *aiStreamService;
+@property (nonatomic, strong, nullable) EmotionChatMessage *streamingAssistantMessage;
 @end
+
+static NSDictionary *EmotionAgentResponsePayload(NSDictionary *entry) {
+    id response = entry[@"response"];
+    if ([response isKindOfClass:NSDictionary.class] && response[@"result"] != nil) {
+        response = response[@"result"];
+    }
+    return [response isKindOfClass:NSDictionary.class] ? response : nil;
+}
+
+static NSString *EmotionAgentDisplayEmotion(NSDictionary *emotion) {
+    if (![emotion[@"emotionOpen"] boolValue]) { return @"心情展示已关闭"; }
+    NSString *text = [emotion[@"text"] isKindOfClass:NSString.class] ? emotion[@"text"] : nil;
+    if (text.length) { return [NSString stringWithFormat:@"当前心情 · %@", text]; }
+    NSString *value = [emotion[@"emotion"] isKindOfClass:NSString.class] ? emotion[@"emotion"] : nil;
+    NSDictionary *names = @{@"HAPPY": @"开心", @"SAD": @"低落", @"ANGRY": @"生气", @"CALM": @"平静", @"DEFAULT": @"默认"};
+    if (!value.length && [emotion[@"url"] isKindOfClass:NSString.class] && [emotion[@"url"] length]) {
+        return @"当前心情 · 默认表情";
+    }
+    return [NSString stringWithFormat:@"当前心情 · %@", names[value] ?: (value.length ? value : @"默认")];
+}
+
+static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
+    if (text.length <= maxLength) { return text ?: @""; }
+    return [[text substringToIndex:maxLength] stringByAppendingString:@"…"];
+}
 
 @implementation EmotionChatViewController
 
@@ -88,6 +127,12 @@
         [weakSelf showFeedback:error.localizedDescription];
     };
     [self configureFamilyNavigationWithTitle:@"情绪树洞" leftTitle:@"" leftAction:nil rightTitle:@"清空" rightAction:^{ [weakSelf clearConversation]; }];
+#if DEBUG
+    if (self.agentConfiguration.deviceId.length) {
+        [self configureFamilyNavigationWithTitle:@"情绪树洞" leftTitle:@"配置" leftAction:^{ [weakSelf queryAgentConfiguration]; }
+                                      rightTitle:@"清空" rightAction:^{ [weakSelf clearConversation]; }];
+    }
+#endif
     self.familyNavigationRightButton.accessibilityLabel = @"清空当前角色的本地聊天";
     [self.familyNavigationRightButton setTitleColor:self.accentColor forState:UIControlStateNormal];
     [self buildPage];
@@ -107,6 +152,121 @@
 - (void)dealloc {
     [NSNotificationCenter.defaultCenter removeObserver:self];
     [_meterTimer invalidate];
+    [_aiStreamService stop];
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+#if DEBUG
+    if (!self.didQueryAgentConfiguration && self.agentConfiguration.deviceId.length) {
+        [self queryAgentConfiguration];
+    }
+#endif
+}
+
+- (void)queryAgentConfiguration {
+    [self.view endEditing:YES];
+    if (self.agentDiagnostics.isRunning) {
+        [self showFeedback:@"正在查询测试设备的智能体配置，请稍候。"];
+        return;
+    }
+    self.didQueryAgentConfiguration = YES;
+    self.agentDiagnostics = self.agentDiagnostics ?: [EmotionAgentDiagnostics new];
+    [self showFeedback:@"正在通过接口查询智能体配置…"];
+    __weak typeof(self) weakSelf = self;
+    [self.agentDiagnostics fetchDeviceId:self.agentConfiguration.deviceId ?: @""
+                              productId:self.agentConfiguration.productId ?: @""
+                             completion:^(NSDictionary<NSString *, NSDictionary *> *report) {
+        [weakSelf applyAgentConfigurationReport:report];
+    }];
+}
+
+- (void)applyAgentConfigurationReport:(NSDictionary<NSString *, NSDictionary *> *)report {
+    NSDictionary *initializedEntry = report[@"initializedRole"];
+    NSDictionary *templateEntry = report[@"roleTemplates"];
+    NSDictionary *emotionEntry = report[@"currentEmotion"];
+    NSDictionary *initializedRole = EmotionAgentResponsePayload(initializedEntry);
+    id templateResponse = templateEntry[@"response"];
+    if ([templateResponse isKindOfClass:NSDictionary.class] && templateResponse[@"result"] != nil) {
+        templateResponse = templateResponse[@"result"];
+    }
+    NSArray *templates = [templateResponse isKindOfClass:NSArray.class] ? templateResponse : nil;
+    NSDictionary *emotion = EmotionAgentResponsePayload(emotionEntry);
+    if (emotion) {
+        self.emotionLabel.text = EmotionAgentDisplayEmotion(emotion);
+        self.emotionLabel.hidden = NO;
+    }
+    if (templates.count) {
+        NSMutableArray<NSDictionary *> *cloudRoles = [NSMutableArray arrayWithCapacity:templates.count];
+        for (NSDictionary *template in templates) {
+            if (![template isKindOfClass:NSDictionary.class]) { continue; }
+            NSString *roleId = [template[@"roleId"] description];
+            NSString *name = [template[@"roleName"] description];
+            if (!roleId.length || !name.length) { continue; }
+            NSString *overview = [template[@"roleOverview"] isKindOfClass:NSString.class] ? template[@"roleOverview"] : @"云端智能体角色";
+            NSString *introduce = [template[@"roleIntroduce"] isKindOfClass:NSString.class] ? template[@"roleIntroduce"] : overview;
+            NSMutableDictionary *role = [@{
+                @"key": roleId,
+                @"roleId": roleId,
+                @"name": name,
+                @"symbol": @"person.crop.circle.fill",
+                @"description": overview,
+                @"greeting": [NSString stringWithFormat:@"我是%@，可以陪你聊聊此刻的心情。", name],
+                @"roleIntroduce": introduce,
+                @"roleOverview": overview,
+                @"details": template,
+            } mutableCopy];
+            if ([template[@"defaultFlag"] boolValue]) { role[@"isDefault"] = @YES; }
+            [cloudRoles addObject:role];
+        }
+        if (initializedRole.count) {
+            NSString *currentRoleId = [initializedRole[@"roleId"] description];
+            NSUInteger currentIndex = [cloudRoles indexOfObjectPassingTest:^BOOL(NSDictionary *role, NSUInteger idx, BOOL *stop) {
+                return [role[@"roleId"] isEqualToString:currentRoleId];
+            }];
+            if (currentIndex != NSNotFound) {
+                NSMutableDictionary *currentRole = [cloudRoles[currentIndex] mutableCopy];
+                currentRole[@"isCurrent"] = @YES;
+                currentRole[@"details"] = initializedRole;
+                currentRole[@"roleIntroduce"] = initializedRole[@"roleIntroduce"] ?: currentRole[@"roleIntroduce"];
+                currentRole[@"description"] = initializedRole[@"roleOverview"] ?: currentRole[@"description"];
+                cloudRoles[currentIndex] = currentRole;
+                self.roleIndex = currentIndex;
+            }
+        }
+        if (self.roleIndex >= cloudRoles.count || ![cloudRoles[self.roleIndex][@"isCurrent"] boolValue]) {
+            NSUInteger defaultIndex = [cloudRoles indexOfObjectPassingTest:^BOOL(NSDictionary *role, NSUInteger idx, BOOL *stop) {
+                return [role[@"isDefault"] boolValue];
+            }];
+            if (defaultIndex != NSNotFound) { self.roleIndex = defaultIndex; }
+        }
+        if (cloudRoles.count) {
+            self.roles = cloudRoles;
+            if (self.roleIndex >= self.roles.count) { self.roleIndex = 0; }
+            [self renderConversation];
+        }
+    }
+    NSArray<NSString *> *queryNames = @[@"initializedRole", @"roleTemplates", @"currentEmotion"];
+    NSMutableArray<NSString *> *failures = [NSMutableArray array];
+    NSDictionary *displayNames = @{@"initializedRole": @"角色初始化", @"roleTemplates": @"角色模板", @"currentEmotion": @"当前心情"};
+    for (NSString *name in queryNames) {
+        NSDictionary *entry = report[name];
+        if ([entry[@"success"] boolValue]) { continue; }
+        NSString *reason = entry[@"message"] ?: entry[@"reason"] ?: @"请求失败";
+        NSNumber *code = entry[@"code"];
+        NSString *suffix = code ? [NSString stringWithFormat:@"（错误码 %@）", code] : @"";
+        NSString *apiName = [entry[@"apiName"] isKindOfClass:NSString.class] ? entry[@"apiName"] : @"未知接口";
+        [failures addObject:[NSString stringWithFormat:@"%@ [%@] %@：%@", displayNames[name], apiName, suffix, reason]];
+    }
+    NSDictionary *project = report[@"project"];
+    if (failures.count) {
+        [self showFeedback:[NSString stringWithFormat:@"接口失败：%@。控制台筛选 EmotionAgentConfig。", [failures componentsJoinedByString:@"；"]]];
+    } else if ([project[@"status"] isEqualToString:@"unsupported"]) {
+        [self showFeedback:[NSString stringWithFormat:@"配置完成：当前角色%@，角色模板%lu个；方案查询接口暂不支持。",
+                            self.roles[self.roleIndex][@"name"], (unsigned long)self.roles.count]];
+    } else {
+        [self showFeedback:@"智能体配置已更新。"];
+    }
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -162,13 +322,16 @@
     self.roleButton.titleLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightSemibold];
     self.roleButton.accessibilityIdentifier = @"emotion.role";
     self.roleDescription = [self label:@"" size:13 weight:UIFontWeightRegular color:self.mutedColor];
-    UIStackView *roleStack = [self stack:@[self.roleButton, self.roleDescription] axis:UILayoutConstraintAxisVertical spacing:0];
+    self.emotionLabel = [self label:@"当前心情 · 默认" size:12 weight:UIFontWeightMedium color:self.accentColor];
+    self.emotionLabel.hidden = YES;
+    UIStackView *roleStack = [self stack:@[self.roleButton, self.roleDescription, self.emotionLabel] axis:UILayoutConstraintAxisVertical spacing:4];
     roleStack.layoutMargins = UIEdgeInsetsMake(8, 18, 14, 18);
     roleStack.layoutMarginsRelativeArrangement = YES;
     roleStack.backgroundColor = self.mintColor;
     roleStack.layer.cornerRadius = 22;
 
-    UILabel *modeLabel = [self label:@"体验模式 · 智能体待接入" size:12 weight:UIFontWeightMedium color:self.mutedColor];
+    NSString *modeText = self.agentConfiguration.solutionCode.length > 0 ? @"已接入智能体 · 随时倾听你的心声" : @"体验模式 · 智能体待接入";
+    UILabel *modeLabel = [self label:modeText size:12 weight:UIFontWeightMedium color:self.mutedColor];
     modeLabel.textAlignment = NSTextAlignmentCenter;
     self.scrollView = [UIScrollView new];
     self.scrollView.translatesAutoresizingMaskIntoConstraints = NO;
@@ -383,7 +546,7 @@
     }
     for (EmotionChatMessage *message in self.currentMessages) {
         UIStackView *bubble = [self stack:@[] axis:UILayoutConstraintAxisVertical spacing:10];
-        bubble.backgroundColor = self.mintColor;
+        bubble.backgroundColor = message.assistant ? UIColor.whiteColor : self.mintColor;
         bubble.layer.cornerRadius = 20;
         bubble.layoutMargins = UIEdgeInsetsMake(14, 16, 14, 16);
         bubble.layoutMarginsRelativeArrangement = YES;
@@ -395,7 +558,8 @@
             [bubble addArrangedSubview:audio];
         }
         if (message.text.length) { [bubble addArrangedSubview:[self label:message.text size:16 weight:UIFontWeightRegular color:self.inkColor]]; }
-        UILabel *status = [self label:@"待发送 · 智能体尚未接入" size:12 weight:UIFontWeightRegular color:self.mutedColor];
+        NSString *statusText = message.assistant ? (message.pending ? @"智能体回复中…" : @"智能体") : (message.status ?: @"已发送");
+        UILabel *status = [self label:statusText size:12 weight:UIFontWeightRegular color:self.mutedColor];
         [bubble addArrangedSubview:status];
         UIView *row = [UIView new];
         [row addSubview:bubble];
@@ -420,16 +584,48 @@
     NSMutableArray *actions = [NSMutableArray array];
     __weak typeof(self) weakSelf = self;
     [self.roles enumerateObjectsUsingBlock:^(NSDictionary *role, NSUInteger index, BOOL *stop) {
-        [actions addObject:[FamilyUIAction actionWithTitle:[NSString stringWithFormat:@"%@ · %@", role[@"name"], role[@"description"]] handler:^{
-            [weakSelf stopPlayback];
-            weakSelf.roleIndex = index;
-            weakSelf.textInput.text = @"";
-            [weakSelf textViewDidChange:weakSelf.textInput];
-            weakSelf.feedbackLabel.hidden = YES;
-            [weakSelf renderConversation];
+        [actions addObject:[FamilyUIAction actionWithTitle:[NSString stringWithFormat:@"查看 %@", role[@"name"]] handler:^{
+            [weakSelf showRoleDetailsAtIndex:index];
         }]];
     }];
-    [self showFamilyActionSheetWithTitle:@"选择陪伴角色" message:@"当前为本地角色预览，各角色的消息单独保留。" actions:actions];
+    [self showFamilyActionSheetWithTitle:@"陪伴角色" message:@"点击角色查看人设详情，再决定是否切换。" actions:actions];
+}
+
+- (void)showRoleDetailsAtIndex:(NSUInteger)index {
+    if (index >= self.roles.count) { return; }
+    NSDictionary *role = self.roles[index];
+    NSMutableString *message = [NSMutableString string];
+    NSString *overview = role[@"roleOverview"] ?: role[@"description"];
+    if (overview.length) { [message appendFormat:@"%@\n\n", overview]; }
+    NSString *introduce = role[@"roleIntroduce"];
+    if (introduce.length && ![introduce isEqualToString:overview]) { [message appendString:introduce]; }
+    NSDictionary *details = role[@"details"];
+    if ([details isKindOfClass:NSDictionary.class]) {
+        NSString *language = details[@"useLangName"];
+        NSString *timbre = details[@"useTimbreName"];
+        if (language.length || timbre.length) {
+            [message appendFormat:@"\n\n语言：%@\n音色：%@", language ?: @"未设置", timbre ?: @"未设置"];
+        }
+    }
+    NSMutableArray<FamilyUIAction *> *actions = [NSMutableArray array];
+    __weak typeof(self) weakSelf = self;
+    if (index != self.roleIndex) {
+        [actions addObject:[FamilyUIAction actionWithTitle:@"使用这个角色" handler:^{ [weakSelf selectRoleAtIndex:index]; }]];
+    }
+    [self showFamilyActionSheetWithTitle:role[@"name"] message:EmotionAgentShortText(message, 1800) actions:actions];
+}
+
+- (void)selectRoleAtIndex:(NSUInteger)index {
+    if (index >= self.roles.count) { return; }
+    [self stopPlayback];
+    [self.aiStreamService stop];
+    self.aiStreamService = nil;
+    self.streamingAssistantMessage = nil;
+    self.roleIndex = index;
+    self.textInput.text = @"";
+    [self textViewDidChange:self.textInput];
+    self.feedbackLabel.hidden = YES;
+    [self renderConversation];
 }
 
 - (void)clearConversation {
@@ -438,6 +634,9 @@
     [self showFamilyConfirmationWithTitle:@"清空这段聊天？" message:@"当前角色的本地消息与录音将删除，其他角色不受影响。" confirmTitle:@"清空" destructive:YES confirm:^{
         typeof(self) self = weakSelf;
         [self stopPlayback];
+        [self.aiStreamService stop];
+        self.aiStreamService = nil;
+        self.streamingAssistantMessage = nil;
         [self discardPendingAudio];
         for (EmotionChatMessage *message in self.currentMessages) {
             if (message.audioURL) { [self.voiceInput deleteRecording:message.audioURL]; }
@@ -460,13 +659,137 @@
 - (void)sendText {
     NSString *text = [self.textInput.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
     if (!text.length || self.pendingURL) { return; }
+    self.streamingAssistantMessage = nil;
     EmotionChatMessage *message = [EmotionChatMessage new];
     message.text = text;
+    message.status = @"发送中…";
     [self.currentMessages addObject:message];
     self.textInput.text = @"";
     [self textViewDidChange:self.textInput];
     [self renderConversation];
-    [self showFeedback:@"已保留在本页；接入智能体后才能获得回复。"];
+    [self sendTextToAgent:text userMessage:message];
+}
+
+- (void)sendTextToAgent:(NSString *)text userMessage:(EmotionChatMessage *)userMessage {
+    EmotionAgentConfiguration *configuration = self.agentConfiguration;
+    if (configuration.solutionCode.length == 0) {
+        userMessage.status = @"未配置 Agent";
+        [self renderConversation];
+        [self showFeedback:@"请在测试配置中填写 Agent ID。"];
+        return;
+    }
+    __weak typeof(self) weakSelf = self;
+    void (^send)(void) = ^{
+        typeof(self) self = weakSelf;
+        if (!self) return;
+        [self.aiStreamService sendText:text completion:^(NSError *error) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                typeof(self) self = weakSelf;
+                if (!self) return;
+                if (error) {
+                    userMessage.status = @"发送失败";
+                    [self renderConversation];
+                    [self showFeedback:[NSString stringWithFormat:@"AI 请求失败：%@", error.localizedDescription ?: @"未知错误"]];
+                } else {
+                    userMessage.status = @"已发送";
+                    [self renderConversation];
+                }
+            });
+        }];
+    };
+    if (self.aiStreamService) {
+        [self.aiStreamService startWithCompletion:^(NSError *error) {
+            if (error) {
+                userMessage.status = @"连接失败";
+                [weakSelf renderConversation];
+                [weakSelf showFeedback:[NSString stringWithFormat:@"AI 通道失败：%@", error.localizedDescription ?: @"未知错误"]];
+                return;
+            }
+            send();
+        }];
+        return;
+    }
+    [self loadHomeId:^(long long homeId, NSError *error) {
+        typeof(self) self = weakSelf;
+        if (!self) return;
+        if (error || homeId <= 0) {
+            userMessage.status = @"家庭不可用";
+            [self renderConversation];
+            [self showFeedback:error.localizedDescription ?: @"未找到当前家庭，无法建立 AI 通道。"];
+            return;
+        }
+        long long ownerId = configuration.ownerId.longLongValue > 0 ? configuration.ownerId.longLongValue : homeId;
+        NSLog(@"[EmotionAIStream] ownerId source=%@ value=%lld homeId=%lld",
+              configuration.ownerId.length > 0 ? @"debug-config" : @"current-home",
+              ownerId,
+              homeId);
+        self.aiStreamService = [[EmotionAIStreamService alloc] initWithSolutionCode:configuration.solutionCode
+                                                                         miniProgramId:configuration.miniProgramId
+                                                                               homeId:ownerId
+                                                                            deviceId:configuration.deviceId
+                                                                    useDeviceIdentity:configuration.useDeviceIdentity];
+        self.aiStreamService.stateHandler = ^(NSString *state, NSError *stateError) {
+            if (stateError) NSLog(@"[EmotionAIStream] %@: %@", state, stateError);
+            else NSLog(@"[EmotionAIStream] %@", state);
+        };
+        self.aiStreamService.textHandler = ^(NSString *responseText, ThingStreamPacketStreamFlag streamFlag) {
+            [weakSelf appendAgentText:responseText streamFlag:streamFlag];
+        };
+        self.aiStreamService.eventHandler = ^(ThingStreamPacketEventType eventType) {
+            if (eventType == ThingStreamPacketEventTypeEnd || eventType == ThingStreamPacketEventTypeChatBreak) {
+                weakSelf.streamingAssistantMessage.pending = NO;
+                [weakSelf renderConversation];
+            }
+        };
+        [self.aiStreamService startWithCompletion:^(NSError *startError) {
+            if (startError) {
+                userMessage.status = @"连接失败";
+                [self renderConversation];
+                [self showFeedback:[NSString stringWithFormat:@"AI 通道失败：%@", startError.localizedDescription ?: @"未知错误"]];
+                return;
+            }
+            send();
+        }];
+    }];
+}
+
+- (void)loadHomeId:(void (^)(long long homeId, NSError * _Nullable error))completion {
+    ThingSmartHomeManager *manager = [ThingSmartHomeManager new];
+    [manager getHomeListWithSuccess:^(NSArray<ThingSmartHomeModel *> *homes) {
+        ThingSmartHomeModel *home = homes.firstObject;
+        if (!home || home.homeId <= 0) {
+            NSError *error = [NSError errorWithDomain:@"emotion-chat" code:1 userInfo:@{NSLocalizedDescriptionKey: @"当前账号没有可用家庭"}];
+            completion(0, error);
+            return;
+        }
+        completion(home.homeId, nil);
+    } failure:^(NSError *error) {
+        completion(0, error);
+    }];
+}
+
+- (void)appendAgentText:(NSString *)rawText streamFlag:(ThingStreamPacketStreamFlag)streamFlag {
+    if (rawText.length == 0) return;
+    if (!self.streamingAssistantMessage) {
+        self.streamingAssistantMessage = [EmotionChatMessage new];
+        self.streamingAssistantMessage.assistant = YES;
+        self.streamingAssistantMessage.pending = YES;
+        [self.currentMessages addObject:self.streamingAssistantMessage];
+    }
+    NSDictionary *json = nil;
+    NSData *data = [rawText dataUsingEncoding:NSUTF8StringEncoding];
+    id object = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    if ([object isKindOfClass:NSDictionary.class]) json = object;
+    NSDictionary *payload = [json[@"data"] isKindOfClass:NSDictionary.class] ? json[@"data"] : nil;
+    NSString *content = [payload[@"content"] isKindOfClass:NSString.class] ? payload[@"content"] : nil;
+    if (content.length == 0) content = rawText;
+    NSString *appendMode = [payload[@"appendMode"] isKindOfClass:NSString.class] ? payload[@"appendMode"] : nil;
+    if ([appendMode isEqualToString:@"replace"] || streamFlag == ThingStreamPacketStreamFlagOnlyOne) {
+        self.streamingAssistantMessage.text = content;
+    } else {
+        self.streamingAssistantMessage.text = [self.streamingAssistantMessage.text ?: @"" stringByAppendingString:content];
+    }
+    [self renderConversation];
 }
 
 #pragma mark - Input and recording
@@ -661,15 +984,29 @@
 
 - (void)sendPendingAudio {
     if (!self.pendingURL || self.recognizing) { return; }
+    NSString *text = [self.reviewText.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    NSURL *audioURL = self.pendingURL;
+    NSTimeInterval duration = self.pendingDuration;
+
+    self.streamingAssistantMessage = nil;
     EmotionChatMessage *message = [EmotionChatMessage new];
-    message.audioURL = self.pendingURL;
-    message.duration = self.pendingDuration;
-    message.text = [self.reviewText.text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    message.audioURL = audioURL;
+    message.duration = duration;
+    message.text = text;
+    message.status = @"发送中…";
     [self.currentMessages addObject:message];
+
     self.pendingURL = nil;
     [self discardPendingAudio];
     [self renderConversation];
-    [self showFeedback:@"语音已保留在本页；智能体尚未接入。"];
+
+    if (text.length > 0) {
+        [self sendTextToAgent:text userMessage:message];
+    } else {
+        message.status = @"已保留语音";
+        [self renderConversation];
+        [self showFeedback:@"语音未识别出文字，仅保留本地音频。"];
+    }
 }
 
 #pragma mark - Playback and lifecycle
