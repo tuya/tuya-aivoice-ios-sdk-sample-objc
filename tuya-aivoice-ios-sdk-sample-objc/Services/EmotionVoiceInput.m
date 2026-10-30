@@ -221,7 +221,11 @@
 }
 
 - (void)deleteRecording:(NSURL *)url {
-    if ([url.URLByDeletingLastPathComponent.path isEqualToString:self.directory.path]) {
+    NSString *path = url.path;
+    NSString *savedAudioDirectory = [NSHomeDirectory() stringByAppendingPathComponent:@"Documents/EmotionAudio"];
+    if (path.length && [url isFileURL] &&
+        ([path hasPrefix:[self.directory.path stringByAppendingString:@"/"]] ||
+         [path hasPrefix:[savedAudioDirectory stringByAppendingString:@"/"]])) {
         [NSFileManager.defaultManager removeItemAtURL:url error:nil];
     }
 }

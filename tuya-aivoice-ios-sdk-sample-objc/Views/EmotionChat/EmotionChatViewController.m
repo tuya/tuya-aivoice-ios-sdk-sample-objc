@@ -11,6 +11,7 @@
     if (self) {
         _roleIds = @{};
         _useDeviceIdentity = NO;
+        _ttsEnabled = YES;
     }
     return self;
 }
@@ -33,7 +34,7 @@
 @property (nonatomic, strong) NSMutableDictionary<NSString *, NSMutableArray<EmotionChatMessage *> *> *conversations;
 @property (nonatomic, strong) EmotionVoiceInput *voiceInput;
 @property (nonatomic, strong) UIButton *roleButton;
-@property (nonatomic, strong) UILabel *roleDescription;
+@property (nonatomic, strong) UIButton *roleDetailButton;
 @property (nonatomic, strong) UILabel *emotionLabel;
 @property (nonatomic, strong) UIScrollView *scrollView;
 @property (nonatomic, strong) UIStackView *messagesStack;
@@ -60,6 +61,7 @@
 @property (nonatomic, assign) BOOL textMode;
 @property (nonatomic, assign) NSUInteger operationGeneration;
 @property (nonatomic, strong) NSLayoutConstraint *composerBottom;
+@property (nonatomic, assign) CGFloat keyboardOverlap;
 @property (nonatomic, strong) NSLayoutConstraint *textHeight;
 @property (nonatomic, strong) UIStackView *reviewPanel;
 @property (nonatomic, strong) UILabel *reviewStatus;
@@ -75,6 +77,7 @@
 @property (nonatomic, assign) BOOL didQueryAgentConfiguration;
 @property (nonatomic, strong, nullable) EmotionAIStreamService *aiStreamService;
 @property (nonatomic, strong, nullable) EmotionChatMessage *streamingAssistantMessage;
+@property (nonatomic, strong, nullable) EmotionChatMessage *activeVoiceMessage;
 @end
 
 static NSDictionary *EmotionAgentResponsePayload(NSDictionary *entry) {
@@ -126,15 +129,18 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
         [weakSelf resetRecordingUI];
         [weakSelf showFeedback:error.localizedDescription];
     };
-    [self configureFamilyNavigationWithTitle:@"情绪树洞" leftTitle:@"" leftAction:nil rightTitle:@"清空" rightAction:^{ [weakSelf clearConversation]; }];
+    [self configureFamilyNavigationWithTitle:@"情绪树洞" leftTitle:@"" leftAction:nil rightTitle:nil rightAction:nil];
 #if DEBUG
     if (self.agentConfiguration.deviceId.length) {
         [self configureFamilyNavigationWithTitle:@"情绪树洞" leftTitle:@"配置" leftAction:^{ [weakSelf queryAgentConfiguration]; }
-                                      rightTitle:@"清空" rightAction:^{ [weakSelf clearConversation]; }];
+                                      rightTitle:nil rightAction:nil];
     }
 #endif
-    self.familyNavigationRightButton.accessibilityLabel = @"清空当前角色的本地聊天";
-    [self.familyNavigationRightButton setTitleColor:self.accentColor forState:UIControlStateNormal];
+    self.familyNavigationRightButton.hidden = NO;
+    self.familyNavigationRightButton.accessibilityIdentifier = @"emotion.tts";
+    self.familyNavigationRightButton.accessibilityLabel = @"TTS 播放";
+    [self.familyNavigationRightButton addTarget:self action:@selector(toggleTTS) forControlEvents:UIControlEventTouchUpInside];
+    [self updateTTSNavigationButton];
     [self buildPage];
     [self buildRecordingOverlay];
     [self renderConversation];
@@ -144,6 +150,8 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
     [self.view addGestureRecognizer:backgroundTap];
     NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
     [center addObserver:self selector:@selector(keyboardChanged:) name:UIKeyboardWillChangeFrameNotification object:nil];
+    [center addObserver:self selector:@selector(keyboardChanged:) name:UIKeyboardWillShowNotification object:nil];
+    [center addObserver:self selector:@selector(keyboardChanged:) name:UIKeyboardWillHideNotification object:nil];
     [center addObserver:self selector:@selector(applicationInactive:) name:UIApplicationWillResignActiveNotification object:nil];
     [center addObserver:self selector:@selector(audioInterrupted:) name:AVAudioSessionInterruptionNotification object:nil];
     [center addObserver:self selector:@selector(audioRouteChanged:) name:AVAudioSessionRouteChangeNotification object:nil];
@@ -155,6 +163,27 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
     [_aiStreamService stop];
 }
 
+- (void)updateTTSNavigationButton {
+    BOOL enabled = self.agentConfiguration.ttsEnabled;
+    UIImage *image = [UIImage systemImageNamed:enabled ? @"speaker.wave.2.fill" : @"speaker.slash.fill"];
+    [self.familyNavigationRightButton setImage:image forState:UIControlStateNormal];
+    [self.familyNavigationRightButton setTitle:@"" forState:UIControlStateNormal];
+    self.familyNavigationRightButton.accessibilityValue = enabled ? @"已开启" : @"已关闭";
+}
+
+- (void)toggleTTS {
+    if (self.aiStreamService.isRecording || self.permissionPending) {
+        return;
+    }
+    self.agentConfiguration.ttsEnabled = !self.agentConfiguration.ttsEnabled;
+    if (self.aiStreamService) {
+        [self.aiStreamService stop];
+        self.aiStreamService = nil;
+    }
+    [self updateTTSNavigationButton];
+    [self showFeedback:self.agentConfiguration.ttsEnabled ? @"已开启 AI 语音播放。" : @"已关闭 AI 语音播放。"];
+}
+
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated];
 #if DEBUG
@@ -162,6 +191,13 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
         [self queryAgentConfiguration];
     }
 #endif
+}
+
+- (void)viewDidLayoutSubviews {
+    [super viewDidLayoutSubviews];
+    if (self.keyboardOverlap > 0) {
+        self.composerBottom.constant = -self.keyboardOverlap;
+    }
 }
 
 - (void)queryAgentConfiguration {
@@ -317,14 +353,22 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 }
 
 - (void)buildPage {
-    self.roleButton = [self button:@"" symbol:@"leaf.fill" action:@selector(selectRole)];
+    self.roleButton = [self button:@"" symbol:@"chevron.down" action:@selector(selectRole)];
     self.roleButton.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeft;
     self.roleButton.titleLabel.font = [UIFont systemFontOfSize:20 weight:UIFontWeightSemibold];
     self.roleButton.accessibilityIdentifier = @"emotion.role";
-    self.roleDescription = [self label:@"" size:13 weight:UIFontWeightRegular color:self.mutedColor];
+    self.roleButton.accessibilityHint = @"点击切换陪伴角色";
+    self.roleDetailButton = [self button:@"查看详情" symbol:nil action:@selector(showCurrentRoleDetails)];
+    self.roleDetailButton.titleLabel.font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+    self.roleDetailButton.accessibilityIdentifier = @"emotion.roleDetails";
     self.emotionLabel = [self label:@"当前心情 · 默认" size:12 weight:UIFontWeightMedium color:self.accentColor];
     self.emotionLabel.hidden = YES;
-    UIStackView *roleStack = [self stack:@[self.roleButton, self.roleDescription, self.emotionLabel] axis:UILayoutConstraintAxisVertical spacing:4];
+    UIStackView *roleHeader = [self stack:@[self.roleButton, self.roleDetailButton] axis:UILayoutConstraintAxisHorizontal spacing:8];
+    roleHeader.alignment = UIStackViewAlignmentCenter;
+    [self.roleButton setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
+    [self.roleDetailButton setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+    [self.roleDetailButton setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+    UIStackView *roleStack = [self stack:@[roleHeader, self.emotionLabel] axis:UILayoutConstraintAxisVertical spacing:4];
     roleStack.layoutMargins = UIEdgeInsetsMake(8, 18, 14, 18);
     roleStack.layoutMarginsRelativeArrangement = YES;
     roleStack.backgroundColor = self.mintColor;
@@ -476,7 +520,7 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
     self.recordingTime = [self label:@"00:00" size:24 weight:UIFontWeightMedium color:self.accentColor];
     self.recordingTime.font = [UIFont monospacedDigitSystemFontOfSize:24 weight:UIFontWeightMedium];
     self.recordingTime.accessibilityElementsHidden = YES;
-    self.recordingHint = [self label:@"松开后可试听、校对文字\n向上滑动取消" size:15 weight:UIFontWeightRegular color:self.mutedColor];
+    self.recordingHint = [self label:@"松开后直接发送语音\n向上滑动取消" size:15 weight:UIFontWeightRegular color:self.mutedColor];
     self.recordingRoute = [self label:@"" size:12 weight:UIFontWeightRegular color:self.mutedColor];
     UIStackView *meter = [self stack:@[] axis:UILayoutConstraintAxisHorizontal spacing:4];
     meter.alignment = UIStackViewAlignmentCenter;
@@ -522,10 +566,10 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 
 - (void)renderConversation {
     NSDictionary *role = self.roles[self.roleIndex];
-    [self.roleButton setTitle:[NSString stringWithFormat:@"  %@  ⌄", role[@"name"]] forState:UIControlStateNormal];
+    [self.roleButton setTitle:[NSString stringWithFormat:@"  %@", role[@"name"]] forState:UIControlStateNormal];
     [self.roleButton setImage:[UIImage systemImageNamed:role[@"symbol"]] forState:UIControlStateNormal];
     self.roleButton.accessibilityLabel = [NSString stringWithFormat:@"当前角色%@，切换角色", role[@"name"]];
-    self.roleDescription.text = role[@"description"];
+    self.roleDetailButton.accessibilityLabel = [NSString stringWithFormat:@"查看%@详情", role[@"name"]];
     for (UIView *view in self.messagesStack.arrangedSubviews) {
         [self.messagesStack removeArrangedSubview:view];
         [view removeFromSuperview];
@@ -584,11 +628,18 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
     NSMutableArray *actions = [NSMutableArray array];
     __weak typeof(self) weakSelf = self;
     [self.roles enumerateObjectsUsingBlock:^(NSDictionary *role, NSUInteger index, BOOL *stop) {
-        [actions addObject:[FamilyUIAction actionWithTitle:[NSString stringWithFormat:@"查看 %@", role[@"name"]] handler:^{
-            [weakSelf showRoleDetailsAtIndex:index];
+        NSString *title = index == self.roleIndex
+            ? [NSString stringWithFormat:@"%@（当前）", role[@"name"]]
+            : role[@"name"];
+        [actions addObject:[FamilyUIAction actionWithTitle:title handler:^{
+            if (index != weakSelf.roleIndex) { [weakSelf selectRoleAtIndex:index]; }
         }]];
     }];
-    [self showFamilyActionSheetWithTitle:@"陪伴角色" message:@"点击角色查看人设详情，再决定是否切换。" actions:actions];
+    [self showFamilyActionSheetWithTitle:@"切换陪伴角色" message:@"点击角色名称即可切换。" actions:actions];
+}
+
+- (void)showCurrentRoleDetails {
+    [self showRoleDetailsAtIndex:self.roleIndex];
 }
 
 - (void)showRoleDetailsAtIndex:(NSUInteger)index {
@@ -621,6 +672,7 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
     [self.aiStreamService stop];
     self.aiStreamService = nil;
     self.streamingAssistantMessage = nil;
+    self.activeVoiceMessage = nil;
     self.roleIndex = index;
     self.textInput.text = @"";
     [self textViewDidChange:self.textInput];
@@ -629,7 +681,7 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 }
 
 - (void)clearConversation {
-    if (self.voiceInput.isRecording || self.permissionPending) { return; }
+    if (self.aiStreamService.isRecording || self.permissionPending) { return; }
     __weak typeof(self) weakSelf = self;
     [self showFamilyConfirmationWithTitle:@"清空这段聊天？" message:@"当前角色的本地消息与录音将删除，其他角色不受影响。" confirmTitle:@"清空" destructive:YES confirm:^{
         typeof(self) self = weakSelf;
@@ -637,6 +689,7 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
         [self.aiStreamService stop];
         self.aiStreamService = nil;
         self.streamingAssistantMessage = nil;
+        self.activeVoiceMessage = nil;
         [self discardPendingAudio];
         for (EmotionChatMessage *message in self.currentMessages) {
             if (message.audioURL) { [self.voiceInput deleteRecording:message.audioURL]; }
@@ -670,52 +723,27 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
     [self sendTextToAgent:text userMessage:message];
 }
 
-- (void)sendTextToAgent:(NSString *)text userMessage:(EmotionChatMessage *)userMessage {
+- (void)prepareAIStreamService:(void (^)(NSError * _Nullable error))completion {
     EmotionAgentConfiguration *configuration = self.agentConfiguration;
     if (configuration.solutionCode.length == 0) {
-        userMessage.status = @"未配置 Agent";
-        [self renderConversation];
-        [self showFeedback:@"请在测试配置中填写 Agent ID。"];
+        if (completion) completion([NSError errorWithDomain:@"emotion-chat" code:2 userInfo:@{NSLocalizedDescriptionKey: @"请在测试配置中填写 Agent ID。"}]);
         return;
     }
     __weak typeof(self) weakSelf = self;
-    void (^send)(void) = ^{
+    void (^start)(void) = ^{
         typeof(self) self = weakSelf;
         if (!self) return;
-        [self.aiStreamService sendText:text completion:^(NSError *error) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                typeof(self) self = weakSelf;
-                if (!self) return;
-                if (error) {
-                    userMessage.status = @"发送失败";
-                    [self renderConversation];
-                    [self showFeedback:[NSString stringWithFormat:@"AI 请求失败：%@", error.localizedDescription ?: @"未知错误"]];
-                } else {
-                    userMessage.status = @"已发送";
-                    [self renderConversation];
-                }
-            });
-        }];
+        [self.aiStreamService startWithCompletion:completion];
     };
     if (self.aiStreamService) {
-        [self.aiStreamService startWithCompletion:^(NSError *error) {
-            if (error) {
-                userMessage.status = @"连接失败";
-                [weakSelf renderConversation];
-                [weakSelf showFeedback:[NSString stringWithFormat:@"AI 通道失败：%@", error.localizedDescription ?: @"未知错误"]];
-                return;
-            }
-            send();
-        }];
+        start();
         return;
     }
     [self loadHomeId:^(long long homeId, NSError *error) {
         typeof(self) self = weakSelf;
         if (!self) return;
         if (error || homeId <= 0) {
-            userMessage.status = @"家庭不可用";
-            [self renderConversation];
-            [self showFeedback:error.localizedDescription ?: @"未找到当前家庭，无法建立 AI 通道。"];
+            if (completion) completion(error ?: [NSError errorWithDomain:@"emotion-chat" code:1 userInfo:@{NSLocalizedDescriptionKey: @"未找到当前家庭，无法建立 AI 通道。"}]);
             return;
         }
         long long ownerId = configuration.ownerId.longLongValue > 0 ? configuration.ownerId.longLongValue : homeId;
@@ -728,6 +756,7 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
                                                                                homeId:ownerId
                                                                             deviceId:configuration.deviceId
                                                                     useDeviceIdentity:configuration.useDeviceIdentity];
+        self.aiStreamService.ttsEnabled = configuration.ttsEnabled;
         self.aiStreamService.stateHandler = ^(NSString *state, NSError *stateError) {
             if (stateError) NSLog(@"[EmotionAIStream] %@: %@", state, stateError);
             else NSLog(@"[EmotionAIStream] %@", state);
@@ -737,18 +766,38 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
         };
         self.aiStreamService.eventHandler = ^(ThingStreamPacketEventType eventType) {
             if (eventType == ThingStreamPacketEventTypeEnd || eventType == ThingStreamPacketEventTypeChatBreak) {
-                weakSelf.streamingAssistantMessage.pending = NO;
+                EmotionChatMessage *message = weakSelf.streamingAssistantMessage;
+                message.pending = NO;
                 [weakSelf renderConversation];
+                weakSelf.streamingAssistantMessage = nil;
             }
         };
-        [self.aiStreamService startWithCompletion:^(NSError *startError) {
-            if (startError) {
-                userMessage.status = @"连接失败";
-                [self renderConversation];
-                [self showFeedback:[NSString stringWithFormat:@"AI 通道失败：%@", startError.localizedDescription ?: @"未知错误"]];
-                return;
-            }
-            send();
+        start();
+    }];
+}
+
+- (void)sendTextToAgent:(NSString *)text userMessage:(EmotionChatMessage *)userMessage {
+    __weak typeof(self) weakSelf = self;
+    [self prepareAIStreamService:^(NSError *error) {
+        typeof(self) self = weakSelf;
+        if (!self) return;
+        if (error) {
+            userMessage.status = @"连接失败";
+            [self renderConversation];
+            [self showFeedback:[NSString stringWithFormat:@"AI 通道失败：%@", error.localizedDescription ?: @"未知错误"]];
+            return;
+        }
+        [self.aiStreamService sendText:text completion:^(NSError *sendError) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (sendError) {
+                    userMessage.status = @"发送失败";
+                    [self renderConversation];
+                    [self showFeedback:[NSString stringWithFormat:@"AI 请求失败：%@", sendError.localizedDescription ?: @"未知错误"]];
+                } else {
+                    userMessage.status = @"已发送";
+                    [self renderConversation];
+                }
+            });
         }];
     }];
 }
@@ -770,19 +819,29 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 
 - (void)appendAgentText:(NSString *)rawText streamFlag:(ThingStreamPacketStreamFlag)streamFlag {
     if (rawText.length == 0) return;
+    NSData *data = [rawText dataUsingEncoding:NSUTF8StringEncoding];
+    id object = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+    if (![object isKindOfClass:NSDictionary.class]) return;
+    NSDictionary *json = object;
+    NSString *bizType = [json[@"bizType"] isKindOfClass:NSString.class] ? json[@"bizType"] : nil;
+    NSDictionary *payload = [json[@"data"] isKindOfClass:NSDictionary.class] ? json[@"data"] : nil;
+    if ([bizType isEqualToString:@"ASR"]) {
+        NSString *asrText = [payload[@"text"] isKindOfClass:NSString.class] ? payload[@"text"] : nil;
+        if (asrText.length && self.activeVoiceMessage) {
+            self.activeVoiceMessage.text = asrText;
+            [self renderConversation];
+        }
+        return;
+    }
+    if (![bizType isEqualToString:@"NLG"]) return;
+    NSString *content = [payload[@"content"] isKindOfClass:NSString.class] ? payload[@"content"] : nil;
+    if (content.length == 0) return;
     if (!self.streamingAssistantMessage) {
         self.streamingAssistantMessage = [EmotionChatMessage new];
         self.streamingAssistantMessage.assistant = YES;
         self.streamingAssistantMessage.pending = YES;
         [self.currentMessages addObject:self.streamingAssistantMessage];
     }
-    NSDictionary *json = nil;
-    NSData *data = [rawText dataUsingEncoding:NSUTF8StringEncoding];
-    id object = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-    if ([object isKindOfClass:NSDictionary.class]) json = object;
-    NSDictionary *payload = [json[@"data"] isKindOfClass:NSDictionary.class] ? json[@"data"] : nil;
-    NSString *content = [payload[@"content"] isKindOfClass:NSString.class] ? payload[@"content"] : nil;
-    if (content.length == 0) content = rawText;
     NSString *appendMode = [payload[@"appendMode"] isKindOfClass:NSString.class] ? payload[@"appendMode"] : nil;
     if ([appendMode isEqualToString:@"replace"] || streamFlag == ThingStreamPacketStreamFlagOnlyOne) {
         self.streamingAssistantMessage.text = content;
@@ -795,16 +854,24 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 #pragma mark - Input and recording
 
 - (void)toggleInputMode {
-    if (self.voiceInput.isRecording || self.permissionPending) { return; }
+    if (self.aiStreamService.isRecording || self.permissionPending) { return; }
     self.textMode = !self.textMode;
     self.recordButton.hidden = self.textMode;
     self.textInput.hidden = !self.textMode;
     self.sendButton.hidden = !self.textMode;
     [self.modeButton setImage:[UIImage systemImageNamed:self.textMode ? @"mic.fill" : @"keyboard"] forState:UIControlStateNormal];
     self.modeButton.accessibilityLabel = self.textMode ? @"切换为语音输入" : @"切换为文字输入";
-    self.inputHint.text = self.textMode ? @"消息仅保留在当前页面" : @"按住录音，上滑取消 · 最长 60 秒";
-    if (self.textMode) { [self.textInput becomeFirstResponder]; }
-    else { [self.view endEditing:YES]; }
+    self.inputHint.text = self.textMode ? @"消息仅保留在当前页面" : @"按住录音，语音直接发送 · 最长 60 秒";
+    if (self.textMode) {
+        [self.view layoutIfNeeded];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (self.textMode && self.textInput.window) {
+                [self.textInput becomeFirstResponder];
+            }
+        });
+    } else {
+        [self dismissKeyboard];
+    }
 }
 
 - (void)textViewDidChange:(UITextView *)textView {
@@ -827,23 +894,23 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
             self.operationGeneration += 1;
             self.permissionPending = NO;
         }
-        if (self.voiceInput.isRecording) { [self finishRecordingCancelled:self.cancelOnRelease]; }
+        if (self.aiStreamService.isRecording) { [self finishRecordingCancelled:self.cancelOnRelease]; }
     } else if (gesture.state == UIGestureRecognizerStateCancelled || gesture.state == UIGestureRecognizerStateFailed) {
-        if (self.voiceInput.isRecording || self.permissionPending) { [self cancelActiveRecording]; }
+        if (self.aiStreamService.isRecording || self.permissionPending) { [self cancelActiveRecording]; }
     }
 }
 
 - (void)accessibleRecordTap {
     if (!UIAccessibilityIsVoiceOverRunning()) {
-        [self showFeedback:@"请按住说话，松开后可以试听和校对。"];
+        [self showFeedback:@"请按住说话，松开后会直接发送语音。"];
         return;
     }
-    if (self.voiceInput.isRecording) { [self finishRecordingCancelled:NO]; }
+    if (self.aiStreamService.isRecording) { [self finishRecordingCancelled:NO]; }
     else { [self beginRecordingRequiringHold:NO]; }
 }
 
 - (void)beginRecordingRequiringHold:(BOOL)requiresHold {
-    if (self.pendingURL || self.permissionPending || self.voiceInput.isRecording) { return; }
+    if (self.pendingURL || self.permissionPending || self.aiStreamService.isRecording) { return; }
     [self.view endEditing:YES];
     [self stopPlayback];
     self.feedbackLabel.hidden = YES;
@@ -861,23 +928,45 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
         }
         BOOL holding = self.recordGesture.state == UIGestureRecognizerStateBegan || self.recordGesture.state == UIGestureRecognizerStateChanged;
         if ((requiresHold && !holding) || !self.view.window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) { return; }
-        NSError *error = nil;
-        if (![self.voiceInput startRecording:&error]) {
-            [self showFeedback:error.localizedDescription ?: @"无法开始录音，请重试。"];
-            return;
-        }
-        self.recordingOverlay.hidden = NO;
-        self.roleButton.enabled = NO;
-        self.modeButton.enabled = NO;
-        [self setFamilyNavigationRightEnabled:NO];
-        for (NSUInteger index = 0; index < self.levels.count; index++) { self.levels[index] = @0; }
-        self.recordingRoute.text = [NSString stringWithFormat:@"正在使用：%@", self.voiceInput.inputName];
-        [self updateRecordingAppearance];
-        [self updateMeter];
-        self.meterTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *timer) { [weakSelf updateMeter]; }];
-        [[NSRunLoop mainRunLoop] addTimer:self.meterTimer forMode:NSRunLoopCommonModes];
-        [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight] impactOccurred];
-        UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, @"开始录音，再次双击完成。" );
+        [self prepareAIStreamService:^(NSError *error) {
+            typeof(self) self = weakSelf;
+            if (!self || generation != self.operationGeneration) { return; }
+            if (error) {
+                [self showFeedback:error.localizedDescription ?: @"无法连接 AI，请重试。"];
+                return;
+            }
+            self.streamingAssistantMessage = nil;
+            EmotionChatMessage *message = [EmotionChatMessage new];
+            message.status = @"发送中…";
+            [self.currentMessages addObject:message];
+            self.activeVoiceMessage = message;
+            [self renderConversation];
+            [self.aiStreamService startAudioRecordingWithCompletion:^(NSError *startError) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    typeof(self) self = weakSelf;
+                    if (!self || generation != self.operationGeneration) { return; }
+                    if (startError) {
+                        [self.currentMessages removeObject:message];
+                        if (self.activeVoiceMessage == message) { self.activeVoiceMessage = nil; }
+                        [self renderConversation];
+                        [self showFeedback:startError.localizedDescription ?: @"无法开始语音发送，请重试。"];
+                        return;
+                    }
+                    self.recordingOverlay.hidden = NO;
+                    self.roleButton.enabled = NO;
+                    self.modeButton.enabled = NO;
+                    [self setFamilyNavigationRightEnabled:NO];
+                    for (NSUInteger index = 0; index < self.levels.count; index++) { self.levels[index] = @0; }
+                    self.recordingRoute.text = [NSString stringWithFormat:@"正在使用：%@", AVAudioSession.sharedInstance.currentRoute.inputs.firstObject.portName ?: @"麦克风"];
+                    [self updateRecordingAppearance];
+                    [self updateMeter];
+                    self.meterTimer = [NSTimer scheduledTimerWithTimeInterval:0.1 repeats:YES block:^(NSTimer *timer) { [weakSelf updateMeter]; }];
+                    [[NSRunLoop mainRunLoop] addTimer:self.meterTimer forMode:NSRunLoopCommonModes];
+                    [[[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleLight] impactOccurred];
+                    UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, @"开始录音，语音会直接发送给智能体。" );
+                });
+            }];
+        }];
     }];
 }
 
@@ -890,21 +979,21 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 }
 
 - (void)updateRecordingAppearance {
-    if (!self.voiceInput.isRecording) { return; }
+    if (!self.aiStreamService.isRecording) { return; }
     UIColor *color = self.cancelOnRelease ? UIColor.systemRedColor : self.accentColor;
     self.recordingTitle.text = self.cancelOnRelease ? @"松开，取消这段录音" : @"正在听你说";
     self.recordingTitle.textColor = self.cancelOnRelease ? UIColor.systemRedColor : self.inkColor;
-    self.recordingHint.text = self.cancelOnRelease ? @"移回按钮，继续录音" : @"松开后可试听、校对文字\n向上滑动取消";
+    self.recordingHint.text = self.cancelOnRelease ? @"移回按钮，继续录音" : @"松开后直接发送语音\n向上滑动取消";
     self.recordButton.backgroundColor = color;
     [self.recordButton setTitle:self.cancelOnRelease ? @"松开取消" : @"松开完成" forState:UIControlStateNormal];
 }
 
 - (void)updateMeter {
-    if (!self.voiceInput.isRecording) { return; }
-    NSTimeInterval duration = self.voiceInput.duration;
+    if (!self.aiStreamService.isRecording) { return; }
+    NSTimeInterval duration = self.aiStreamService.recordingDuration;
     self.recordingTime.text = [NSString stringWithFormat:@"00:%02ld / 01:00", (long)floor(duration)];
     [self.levels removeObjectAtIndex:0];
-    [self.levels addObject:@(self.voiceInput.level)];
+    [self.levels addObject:@(self.aiStreamService.recordingLevel)];
     [self.meterHeights enumerateObjectsUsingBlock:^(NSLayoutConstraint *height, NSUInteger index, BOOL *stop) {
         height.constant = 6 + MIN(1, self.levels[index].floatValue) * 72;
     }];
@@ -912,39 +1001,39 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 }
 
 - (void)finishRecordingCancelled:(BOOL)cancelled {
-    NSTimeInterval duration = self.voiceInput.duration;
+    NSTimeInterval duration = self.aiStreamService.recordingDuration;
     if (cancelled || duration < 0.7) {
-        [self.voiceInput cancelRecording];
+        [self.aiStreamService cancelAudioRecording];
+        if (self.activeVoiceMessage) {
+            [self.currentMessages removeObject:self.activeVoiceMessage];
+            self.activeVoiceMessage = nil;
+            [self renderConversation];
+        }
         [self resetRecordingUI];
         [self showFeedback:cancelled ? @"录音已取消。" : @"说话时间太短，请按住再说一次。"];
         return;
     }
-    self.pendingURL = [self.voiceInput finishRecording];
-    self.pendingDuration = duration;
     [self resetRecordingUI];
-    self.reviewPanel.hidden = NO;
-    self.inputRow.hidden = YES;
-    self.inputHint.hidden = YES;
-    self.reviewText.text = @"";
-    self.reviewText.editable = NO;
-    self.reviewStatus.text = @"正在转成文字，可先试听…";
-    self.reviewSendButton.enabled = NO;
-    self.recordButton.enabled = NO;
-    self.recognizing = YES;
-    NSUInteger generation = ++self.operationGeneration;
     __weak typeof(self) weakSelf = self;
-    [self.voiceInput transcribeURL:self.pendingURL completion:^(NSString *text, NSError *error) {
-        typeof(self) self = weakSelf;
-        if (!self || generation != self.operationGeneration || !self.pendingURL) { return; }
-        self.recognizing = NO;
-        self.reviewText.text = text;
-        self.reviewText.editable = YES;
-        self.reviewStatus.text = error ? error.localizedDescription : (text.length ? @"识别完成，文字可以修改" : @"没有识别到文字，可以补充或保留语音");
-        self.reviewSendButton.enabled = YES;
-        UIAccessibilityPostNotification(UIAccessibilityAnnouncementNotification, self.reviewStatus.text);
+    [self.aiStreamService stopAudioRecordingWithCompletion:^(NSURL *audioURL, NSTimeInterval audioDuration, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            typeof(self) self = weakSelf;
+            if (!self) return;
+            EmotionChatMessage *message = self.activeVoiceMessage;
+            if (!message) {
+                message = [EmotionChatMessage new];
+                [self.currentMessages addObject:message];
+            }
+            message.audioURL = audioURL;
+            message.duration = audioDuration;
+            message.status = error ? @"发送失败" : @"已发送";
+            [self renderConversation];
+            [self scrollToLatest];
+            if (error) {
+                [self showFeedback:[NSString stringWithFormat:@"语音发送失败：%@", error.localizedDescription ?: @"未知错误"]];
+            }
+        });
     }];
-    [self textViewDidChange:self.textInput];
-    [self scrollToLatest];
 }
 
 - (void)resetRecordingUI {
@@ -962,6 +1051,12 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 - (void)cancelActiveRecording {
     self.operationGeneration += 1;
     self.permissionPending = NO;
+    [self.aiStreamService cancelAudioRecording];
+    if (self.activeVoiceMessage) {
+        [self.currentMessages removeObject:self.activeVoiceMessage];
+        self.activeVoiceMessage = nil;
+        [self renderConversation];
+    }
     [self.voiceInput cancelRecording];
     [self resetRecordingUI];
 }
@@ -1041,7 +1136,7 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 }
 
 - (void)applicationInactive:(NSNotification *)notification {
-    if (self.voiceInput.isRecording) {
+    if (self.aiStreamService.isRecording) {
         [self cancelActiveRecording];
         [self showFeedback:@"录音因应用离开前台而取消，请重新录制。"];
     }
@@ -1058,7 +1153,7 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
     AVAudioSessionRouteChangeReason reason = [notification.userInfo[AVAudioSessionRouteChangeReasonKey] unsignedIntegerValue];
     if (reason == AVAudioSessionRouteChangeReasonOldDeviceUnavailable) {
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (self.voiceInput.isRecording) {
+            if (self.aiStreamService.isRecording) {
                 [self cancelActiveRecording];
                 [self showFeedback:@"音频设备已断开，录音已取消，请重新录制。"];
             }
@@ -1068,11 +1163,13 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 }
 
 - (void)dismissKeyboard {
+    [self.textInput resignFirstResponder];
+    [self.reviewText resignFirstResponder];
     [self.view endEditing:YES];
 }
 
 - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch {
-    if (self.voiceInput.isRecording || self.permissionPending) { return NO; }
+    if (self.aiStreamService.isRecording || self.permissionPending) { return NO; }
     for (UIView *view = touch.view; view; view = view.superview) {
         if ([view isKindOfClass:UIControl.class] || [view isKindOfClass:UITextView.class]) { return NO; }
     }
@@ -1080,12 +1177,18 @@ static NSString *EmotionAgentShortText(NSString *text, NSUInteger maxLength) {
 }
 
 - (void)keyboardChanged:(NSNotification *)notification {
-    if (!self.view.window) { return; }
     CGRect screenFrame = [notification.userInfo[UIKeyboardFrameEndUserInfoKey] CGRectValue];
-    CGRect frame = [self.view convertRect:screenFrame fromView:nil];
+    UIWindow *window = self.view.window;
+    CGRect frame = screenFrame;
+    if (window) {
+        CGRect windowFrame = [window convertRect:screenFrame fromWindow:nil];
+        frame = [self.view convertRect:windowFrame fromView:window];
+    }
     CGFloat safeBottom = CGRectGetMaxY(self.view.bounds) - self.view.safeAreaInsets.bottom;
     BOOL overlapsHorizontally = CGRectGetMinX(frame) < CGRectGetMaxX(self.view.bounds) && CGRectGetMaxX(frame) > 0;
-    self.composerBottom.constant = overlapsHorizontally ? -MAX(0, safeBottom - CGRectGetMinY(frame)) : 0;
+    self.keyboardOverlap = overlapsHorizontally ? MAX(0, safeBottom - CGRectGetMinY(frame)) : 0;
+    self.composerBottom.constant = -self.keyboardOverlap;
+    [self.view setNeedsLayout];
     NSTimeInterval duration = [notification.userInfo[UIKeyboardAnimationDurationUserInfoKey] doubleValue];
     UIViewAnimationOptions options = [notification.userInfo[UIKeyboardAnimationCurveUserInfoKey] unsignedIntegerValue] << 16;
     [UIView animateWithDuration:duration delay:0 options:options animations:^{ [self.view layoutIfNeeded]; } completion:^(BOOL finished) { [self scrollToLatest]; }];

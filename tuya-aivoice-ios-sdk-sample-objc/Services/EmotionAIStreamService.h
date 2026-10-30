@@ -6,6 +6,9 @@ NS_ASSUME_NONNULL_BEGIN
 typedef void (^EmotionAIStreamTextHandler)(NSString *text, ThingStreamPacketStreamFlag streamFlag);
 typedef void (^EmotionAIStreamEventHandler)(ThingStreamPacketEventType eventType);
 typedef void (^EmotionAIStreamStateHandler)(NSString *state, NSError * _Nullable error);
+typedef void (^EmotionAIStreamAudioCompletion)(NSURL * _Nullable audioURL,
+                                                NSTimeInterval duration,
+                                                NSError * _Nullable error);
 
 /// 原生 AI Stream 文字会话封装，支持 App 云端身份和设备代理身份。
 @interface EmotionAIStreamService : NSObject <ThingSmartStreamClientDelegate>
@@ -14,6 +17,10 @@ typedef void (^EmotionAIStreamStateHandler)(NSString *state, NSError * _Nullable
 @property (nonatomic, copy, nullable) EmotionAIStreamEventHandler eventHandler;
 @property (nonatomic, copy, nullable) EmotionAIStreamStateHandler stateHandler;
 @property (nonatomic, assign, readonly, getter=isReady) BOOL ready;
+@property (nonatomic, assign) BOOL ttsEnabled;
+@property (nonatomic, assign, readonly, getter=isRecording) BOOL recording;
+@property (nonatomic, assign, readonly) NSTimeInterval recordingDuration;
+@property (nonatomic, assign, readonly) float recordingLevel;
 
 - (instancetype)initWithSolutionCode:(NSString *)solutionCode
                         miniProgramId:(nullable NSString *)miniProgramId
@@ -25,6 +32,9 @@ typedef void (^EmotionAIStreamStateHandler)(NSString *state, NSError * _Nullable
 
 - (void)startWithCompletion:(void (^)(NSError * _Nullable error))completion;
 - (void)sendText:(NSString *)text completion:(void (^)(NSError * _Nullable error))completion;
+- (void)startAudioRecordingWithCompletion:(void (^)(NSError * _Nullable error))completion;
+- (void)stopAudioRecordingWithCompletion:(EmotionAIStreamAudioCompletion)completion;
+- (void)cancelAudioRecording;
 - (void)stop;
 
 @end

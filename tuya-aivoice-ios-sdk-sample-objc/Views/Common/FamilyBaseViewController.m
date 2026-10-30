@@ -472,6 +472,9 @@
     overlay.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:overlay];
     [overlay addSubview:card];
+    UITapGestureRecognizer *backgroundTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(dismissFamilyOverlayFromBackground:)];
+    backgroundTap.cancelsTouchesInView = NO;
+    [overlay addGestureRecognizer:backgroundTap];
     [NSLayoutConstraint activateConstraints:@[
         [overlay.topAnchor constraintEqualToAnchor:self.view.topAnchor],
         [overlay.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
@@ -494,6 +497,16 @@
         overlay.alpha = 1;
         card.transform = CGAffineTransformIdentity;
     }];
+}
+
+- (void)dismissFamilyOverlayFromBackground:(UITapGestureRecognizer *)gesture {
+    if (!self.activeOverlayCard) {
+        return;
+    }
+    CGPoint point = [gesture locationInView:self.activeOverlayCard];
+    if (![self.activeOverlayCard pointInside:point withEvent:nil]) {
+        [self dismissFamilyOverlay];
+    }
 }
 
 - (void)dismissFamilyOverlay {

@@ -10,6 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, copy, nullable) NSString *solutionCode;
 @property (nonatomic, copy, nullable) NSString *miniProgramId;
 @property (nonatomic, assign) BOOL useDeviceIdentity;
+@property (nonatomic, assign) BOOL ttsEnabled;
 /// 本地角色键（autumn / ocean / sunshine）到云端角色 ID 的映射。
 @property (nonatomic, copy) NSDictionary<NSString *, NSString *> *roleIds;
 @end
